@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Test AdMob App ID (Google-provided).
+         Replace with your REAL app ID for production builds. -->
+    <string name="admob_app_id" translatable="false">ca-app-pub-5583038215571668~2159652952</string>
+</resources>
