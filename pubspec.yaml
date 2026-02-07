@@ -58,3 +58,4 @@ flutter:
 
   assets:
     - assets/icon/app_icon.png
+    - android_icon/ic_launcher-web.png

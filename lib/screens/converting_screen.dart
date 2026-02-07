@@ -1,21 +1,27 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../constants/app_colors.dart';
-import '../constants/app_constants.dart';
 import '../constants/app_strings.dart';
 import '../models/conversion_task.dart';
 import '../providers/conversion_provider.dart';
-import '../utils/format_utils.dart';
 import '../widgets/common/banner_ad_widget.dart';
 import 'conversion_error_screen.dart';
 import 'conversion_success_screen.dart';
 
-/// Screen shown while FFmpeg is actively converting a video to MP3.
+/// Screen shown while FFmpeg is actively converting a video to audio.
 ///
-/// Layout: large progress ring with percentage, "CONVERTING..." label,
-/// filename, time-remaining card, cancel button, banner ad.
+/// Features:
+/// - Beautiful animated circular progress with gradient glow
+/// - Dark gradient background
+/// - Large percentage display
+/// - Poetic status message
+/// - Quality/bitrate information
+/// - Cancel button
+/// - Banner ad at bottom
 class ConvertingScreen extends StatefulWidget {
   const ConvertingScreen({super.key});
 
@@ -23,8 +29,26 @@ class ConvertingScreen extends StatefulWidget {
   State<ConvertingScreen> createState() => _ConvertingScreenState();
 }
 
-class _ConvertingScreenState extends State<ConvertingScreen> {
+class _ConvertingScreenState extends State<ConvertingScreen>
+    with SingleTickerProviderStateMixin {
   bool _hasNavigated = false;
+  late AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    // Animation controller for smooth pulsing effect
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,49 +89,115 @@ class _ConvertingScreenState extends State<ConvertingScreen> {
         }
       },
       child: Scaffold(
+        backgroundColor: const Color(0xFF0F0F1E),
         appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: _showCancelDialog,
           ),
-          title: const Text(AppStrings.conversion),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.music_note_rounded,
+                color: AppColors.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                AppStrings.appNameAbout,
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white70,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
+          ),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              onPressed: () {
+                // Options menu could go here
+              },
+            ),
+          ],
         ),
         body: Column(
           children: [
             Expanded(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppConstants.paddingScreen,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(height: AppConstants.spacingSection),
-                      _ProgressRingSection(
-                        progress: provider.progress,
-                        fileName: task?.inputVideoName ?? '',
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 40),
+                    // Animated progress circle
+                    _AnimatedProgressCircle(
+                      progress: provider.progress,
+                      animation: _animationController,
+                    ),
+                    const SizedBox(height: 40),
+                    // Poetic message
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        'Extracting the soul of your video...',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.white70,
+                          height: 1.4,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: AppConstants.spacingSection + 8),
-                      _TimeRemainingCard(
-                        progress: provider.progress,
-                        videoDurationMs: provider.videoDurationMs,
+                    ),
+                    const SizedBox(height: 24),
+                    // Quality and bitrate info
+                    _QualityInfoRow(
+                      quality: _getQualityLabel(provider.quality.kbps),
+                      bitrate: '${provider.quality.kbps}KBPS',
+                    ),
+                    const SizedBox(height: 60),
+                    // Cancel button
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: _CancelButton(onCancel: _showCancelDialog),
+                    ),
+                    const SizedBox(height: 24),
+                    // Filename
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        task?.inputVideoName ?? '',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: Colors.white38,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: AppConstants.spacingSection * 2),
-                      _CancelButton(onCancel: _showCancelDialog),
-                      const SizedBox(height: AppConstants.spacingElement),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                 ),
               ),
             ),
-
-            // Banner ad at the bottom.
+            // Banner ad at the bottom
             const BannerAdWidget(),
           ],
         ),
       ),
     );
+  }
+
+  String _getQualityLabel(int kbps) {
+    if (kbps >= 320) return 'HIGH FIDELITY';
+    if (kbps >= 192) return 'HIGH QUALITY';
+    return 'STANDARD';
   }
 
   /// Shows a confirmation dialog before cancelling the conversion.
@@ -141,212 +231,249 @@ class _ConvertingScreenState extends State<ConvertingScreen> {
   }
 }
 
-// ─── Progress Ring Section ────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+// Animated Progress Circle
+// ═══════════════════════════════════════════════════════════════════════
 
-/// Large circular progress ring (~240dp) with "CONVERTING..." label,
-/// bold percentage, and filename inside.
-class _ProgressRingSection extends StatelessWidget {
-  const _ProgressRingSection({required this.progress, required this.fileName});
+class _AnimatedProgressCircle extends StatelessWidget {
+  const _AnimatedProgressCircle({
+    required this.progress,
+    required this.animation,
+  });
 
-  /// Current progress from `0.0` to `1.0`.
   final double progress;
-
-  /// The source video filename to display below the percentage.
-  final String fileName;
+  final Animation<double> animation;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final trackColor = isDark ? AppColors.cardDark : AppColors.dividerLight;
     final percentage = (progress * 100).round();
 
-    return SizedBox(
-      width: 240,
-      height: 240,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Track ring.
-          SizedBox(
-            width: 240,
-            height: 240,
-            child: CircularProgressIndicator(
-              value: 1.0,
-              strokeWidth: 12,
-              color: trackColor,
-              strokeCap: StrokeCap.round,
-            ),
-          ),
-
-          // Active arc.
-          SizedBox(
-            width: 240,
-            height: 240,
-            child: CircularProgressIndicator(
-              value: progress,
-              strokeWidth: 12,
-              color: AppColors.primary,
-              strokeCap: StrokeCap.round,
-              backgroundColor: Colors.transparent,
-            ),
-          ),
-
-          // Centre content: label + percentage + filename.
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                AppStrings.convertingStatus,
-                style: theme.textTheme.bodyMedium?.copyWith(letterSpacing: 1.0),
-              ),
-              const SizedBox(height: AppConstants.spacingSmall),
-              Text(
-                '$percentage%',
-                style: GoogleFonts.poppins(
-                  fontSize: 56,
-                  fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.onSurface,
-                  height: 1.1,
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        return Container(
+          width: 340,
+          height: 340,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              // Outer glow (pulsing)
+              BoxShadow(
+                color: AppColors.primary.withValues(
+                  alpha: 0.25 + (animation.value * 0.15),
                 ),
+                blurRadius: 100 + (animation.value * 30),
+                spreadRadius: 20,
               ),
-              const SizedBox(height: AppConstants.spacingSmall),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  fileName,
-                  style: theme.textTheme.bodyMedium,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
+              // Inner glow
+              BoxShadow(
+                color: AppColors.primary.withValues(
+                  alpha: 0.4 + (animation.value * 0.1),
                 ),
+                blurRadius: 50,
+                spreadRadius: 5,
               ),
             ],
           ),
-        ],
-      ),
+          child: CustomPaint(
+            painter: _FilledBlobProgressPainter(
+              progress: progress,
+              glowIntensity: animation.value,
+            ),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Large percentage
+                  Text(
+                    '$percentage%',
+                    style: GoogleFonts.poppins(
+                      fontSize: 96,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      height: 0.9,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 20,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Status text
+                  Text(
+                    'RENDERING',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white.withValues(alpha: 0.85),
+                      letterSpacing: 3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
-// ─── Time Remaining Card ──────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+// Custom Painter for Filled Blob/Disc Progress with Gradient
+// ═══════════════════════════════════════════════════════════════════════
 
-/// Card showing a clock icon and estimated time remaining.
-class _TimeRemainingCard extends StatelessWidget {
-  const _TimeRemainingCard({
+class _FilledBlobProgressPainter extends CustomPainter {
+  _FilledBlobProgressPainter({
     required this.progress,
-    required this.videoDurationMs,
+    required this.glowIntensity,
   });
 
-  /// Current conversion progress from `0.0` to `1.0`.
   final double progress;
+  final double glowIntensity;
 
-  /// Total video duration in milliseconds, used to estimate remaining time.
-  final int videoDurationMs;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    // Create radial gradient for the filled circle
+    const gradient = RadialGradient(
+      colors: [
+        Color(0xFF7B3FF2), // Brighter purple center
+        AppColors.primary, // Primary purple
+        Color(0xFF5E2A9E), // Darker purple edge
+      ],
+      stops: [0.0, 0.6, 1.0],
+    );
+
+    // Draw the filled circle (the blob/disc)
+    final paint = Paint()
+      ..shader = gradient.createShader(
+        Rect.fromCircle(center: center, radius: radius),
+      )
+      ..style = PaintingStyle.fill;
+
+    // Add slight animation wobble to make it feel alive
+    final wobble = math.sin(glowIntensity * math.pi * 2) * 3;
+    canvas.drawCircle(
+      Offset(center.dx + wobble, center.dy),
+      radius - 20,
+      paint,
+    );
+
+    // Add subtle outer ring for depth
+    final ringPaint = Paint()
+      ..color = AppColors.primary.withValues(alpha: 0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    canvas.drawCircle(center, radius - 20, ringPaint);
+
+    // Add small glowing dots around the perimeter (optional accent)
+    final dotCount = 3;
+    for (var i = 0; i < dotCount; i++) {
+      final angle = (i / dotCount) * 2 * math.pi + glowIntensity * math.pi;
+      final dotRadius = radius - 20 + (math.sin(angle * 3) * 8);
+      final x = center.dx + dotRadius * math.cos(angle);
+      final y = center.dy + dotRadius * math.sin(angle);
+
+      final dotPaint = Paint()
+        ..color = Colors.white.withValues(alpha: 0.3 + (glowIntensity * 0.3))
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+
+      canvas.drawCircle(Offset(x, y), 6, dotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_FilledBlobProgressPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.glowIntensity != glowIntensity;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Quality Info Row
+// ═══════════════════════════════════════════════════════════════════════
+
+class _QualityInfoRow extends StatelessWidget {
+  const _QualityInfoRow({required this.quality, required this.bitrate});
+
+  final String quality;
+  final String bitrate;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final remaining = _estimateRemaining();
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppConstants.spacingElement),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(AppConstants.cardRadius),
-        border: Border.all(
-          color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.graphic_eq_rounded, color: Colors.white54, size: 16),
+        const SizedBox(width: 8),
+        Text(
+          quality,
+          style: GoogleFonts.poppins(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.white54,
+            letterSpacing: 1,
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.access_time_rounded,
-              color: AppColors.primary.withValues(alpha: 0.7),
-              size: 22,
-            ),
+        const SizedBox(width: 8),
+        const Text('•', style: TextStyle(color: Colors.white38, fontSize: 13)),
+        const SizedBox(width: 8),
+        Text(
+          bitrate,
+          style: GoogleFonts.poppins(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.white54,
+            letterSpacing: 0.5,
           ),
-          const SizedBox(width: AppConstants.spacingSmall + 4),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppStrings.timeRemaining,
-                  style: theme.textTheme.bodySmall,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${AppStrings.timeRemaining} $remaining '
-                  '${AppStrings.remaining}',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
-  }
-
-  /// Estimates the remaining time as a formatted `mm:ss` string.
-  String _estimateRemaining() {
-    if (progress <= 0) {
-      final totalSec = FormatUtils.estimateConversionTime(
-        videoDurationMs ~/ 1000,
-      );
-      return FormatUtils.duration(totalSec);
-    }
-
-    final elapsedFraction = progress.clamp(0.01, 1.0);
-    final totalEstimateSec = FormatUtils.estimateConversionTime(
-      videoDurationMs ~/ 1000,
-    );
-    final remainingSec =
-        ((1.0 - progress) / elapsedFraction * totalEstimateSec * progress)
-            .round()
-            .clamp(0, 9999);
-
-    return FormatUtils.duration(remainingSec);
   }
 }
 
-// ─── Cancel Button ────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+// Cancel Button
+// ═══════════════════════════════════════════════════════════════════════
 
-/// Red outlined "CANCEL ✕" button at the bottom of the screen.
 class _CancelButton extends StatelessWidget {
   const _CancelButton({required this.onCancel});
 
-  /// Called when the user taps the cancel button.
   final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
+      height: 56,
       child: OutlinedButton.icon(
         onPressed: onCancel,
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.error,
-          side: const BorderSide(color: AppColors.error),
-          minimumSize: const Size.fromHeight(AppConstants.buttonHeight),
+          foregroundColor: Colors.white70,
+          side: BorderSide(
+            color: Colors.white.withValues(alpha: 0.2),
+            width: 1.5,
+          ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.buttonRadius),
+            borderRadius: BorderRadius.circular(28),
+          ),
+          backgroundColor: Colors.white.withValues(alpha: 0.05),
+        ),
+        icon: const Icon(Icons.close_rounded, size: 20),
+        label: Text(
+          AppStrings.cancel.toUpperCase(),
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.5,
           ),
         ),
-        icon: const Text(AppStrings.cancel),
-        label: const Icon(Icons.close_rounded, size: 18),
       ),
     );
   }

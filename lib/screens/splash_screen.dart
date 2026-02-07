@@ -130,10 +130,19 @@ class _SplashScreenState extends State<SplashScreen>
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(28),
                       child: Image.asset(
-                        'assets/icon/app_icon.png',
+                        'android_icon/ic_launcher-web.png',
                         width: 120,
                         height: 120,
                         fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          // Fallback to old icon if new one is not found
+                          return Image.asset(
+                            'assets/icon/app_icon.png',
+                            width: 120,
+                            height: 120,
+                            fit: BoxFit.cover,
+                          );
+                        },
                       ),
                     ),
                   ),

@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/audio_file.dart';
+import '../models/audio_format.dart';
 import '../models/audio_quality.dart';
 import '../models/conversion_task.dart';
 import '../services/database_service.dart';
@@ -34,6 +35,7 @@ class ConversionProvider extends ChangeNotifier {
   File? _selectedVideo;
   String _outputName = '';
   AudioQuality _quality = AudioQuality.medium192;
+  AudioFormat _format = AudioFormat.mp3;
   int _videoDurationMs = 0;
   int _videoSizeBytes = 0;
 
@@ -50,6 +52,9 @@ class ConversionProvider extends ChangeNotifier {
 
   /// The selected audio quality.
   AudioQuality get quality => _quality;
+
+  /// The selected audio format.
+  AudioFormat get format => _format;
 
   /// Video duration in milliseconds.
   int get videoDurationMs => _videoDurationMs;
@@ -132,6 +137,12 @@ class ConversionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Selects the output audio format.
+  void selectFormat(AudioFormat format) {
+    _format = format;
+    notifyListeners();
+  }
+
   /// Starts the conversion. Must have a selected video and output name.
   ///
   /// If [autoDeleteOriginal] is `true`, the source video file is
@@ -150,7 +161,7 @@ class ConversionProvider extends ChangeNotifier {
         inputVideoPath: _selectedVideo!.path,
         inputVideoName: _selectedVideo!.uri.pathSegments.last,
         outputAudioPath: '',
-        outputAudioName: '$_outputName.mp3',
+        outputAudioName: '$_outputName.${_format.extension}',
         quality: _quality,
         videoDurationMs: _videoDurationMs,
         status: ConversionStatus.failed,
@@ -161,13 +172,15 @@ class ConversionProvider extends ChangeNotifier {
       return;
     }
 
-    final outputPath = await _storageService.uniqueOutputPath(_outputName);
+    final outputPath = await _storageService.uniqueOutputPath(
+      '$_outputName.${_format.extension}',
+    );
 
     _task = ConversionTask(
       inputVideoPath: _selectedVideo!.path,
       inputVideoName: _selectedVideo!.uri.pathSegments.last,
       outputAudioPath: outputPath,
-      outputAudioName: '$_outputName.mp3',
+      outputAudioName: '$_outputName.${_format.extension}',
       quality: _quality,
       videoDurationMs: _videoDurationMs,
       status: ConversionStatus.converting,
@@ -175,9 +188,10 @@ class ConversionProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await _ffmpegService.convertVideoToMp3(
+      final result = await _ffmpegService.convertVideoToAudio(
         inputPath: _selectedVideo!.path,
         outputPath: outputPath,
+        format: _format,
         quality: _quality,
         videoDurationMs: _videoDurationMs,
         normalizeVolume: normalizeVolume,

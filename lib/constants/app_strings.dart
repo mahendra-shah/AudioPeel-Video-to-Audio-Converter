@@ -110,20 +110,62 @@ abstract final class AppStrings {
 
   // ─── Settings Screen ────────────────────────────────────────────────
   static const String settings = 'Settings';
+
+  // Extraction Engine
+  static const String extractionEngine = 'EXTRACTION ENGINE';
+  static const String defaultFormat = 'Default Format';
+  static const String bitrate = 'Bitrate';
+  static const String sampleRate = 'Sample Rate';
+  static const String channel = 'Channel';
+  static const String selectFormat = 'Select Format';
+  static const String selectBitrate = 'Select Bitrate';
+  static const String selectSampleRate = 'Select Sample Rate';
+  static const String selectChannel = 'Select Channel';
+
+  // Automation
+  static const String automation = 'AUTOMATION';
+  static const String smartId3Tagging = 'Smart ID3 Tagging';
+  static const String smartId3Description = 'Auto-fill metadata from video';
+  static const String autoDeleteSource = 'Auto-delete Source';
+  static const String autoDeleteSourceDescription =
+      'Delete video after conversion';
+  static const String normalizeVolume = 'Normalize Volume';
+  static const String normalizeVolumeDescription = 'Balance audio levels';
+
+  // Storage
+  static const String storage = 'STORAGE';
+  static const String outputPath = 'Output Path';
+  static const String cloudSync = 'Cloud Sync';
+  static const String cloudSyncDescription = 'Backup to Google Drive';
+  static const String driveConnected = 'Drive Connected';
+  static const String driveNotConnected = 'Not Connected';
+
+  // Experience
+  static const String experience = 'EXPERIENCE';
+  static const String theme = 'Theme';
+  static const String hapticFeedback = 'Haptic Feedback';
+  static const String hapticDescription = 'Vibration on interactions';
+  static const String oledDark = 'OLED Dark';
+  static const String lightTheme = 'Light';
+  static const String systemTheme = 'System';
+
+  // Support
+  static const String support = 'SUPPORT';
+  static const String clearCache = 'Clear Cache';
+  static const String cacheCleared = 'Cache cleared';
+  static const String restorePurchases = 'Restore Purchases';
+  static const String aboutVibe = 'About Vibe';
+
+  // Legacy (keep for compatibility)
   static const String audioSettings = 'AUDIO SETTINGS';
   static const String audioQualityLabel = 'Audio Quality';
-  static const String normalizeVolume = 'Normalize Volume';
   static const String appearanceAndBehavior = 'APPEARANCE & BEHAVIOR';
   static const String appearance = 'Appearance';
   static const String darkMode = 'Dark Mode';
   static const String autoDeleteOriginal = 'Auto-delete Original';
   static const String autoDeleteDescription = 'Delete video after conversion';
   static const String defaultQuality = 'Default Quality';
-  static const String storage = 'STORAGE';
-  static const String outputPath = 'Output Path';
   static const String outputLocation = 'Output Location';
-  static const String clearCache = 'Clear Cache';
-  static const String cacheCleared = 'Cache cleared';
   static const String about = 'ABOUT';
   static const String appNameAbout = 'Voca';
   static const String version = 'Version';

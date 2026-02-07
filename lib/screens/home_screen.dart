@@ -548,7 +548,7 @@ class _HeroOrbitGraphicState extends State<_HeroOrbitGraphic>
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'SELECT VIDEO',
+                          'DROP VIDEO',
                           style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(
                                 color: Colors.white,

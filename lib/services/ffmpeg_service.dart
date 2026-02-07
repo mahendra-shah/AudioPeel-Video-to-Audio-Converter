@@ -7,6 +7,7 @@ import 'package:ffmpeg_kit_flutter_new/ffprobe_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 
 import '../constants/app_constants.dart';
+import '../models/audio_format.dart';
 import '../models/audio_quality.dart';
 import '../utils/logger.dart';
 
@@ -59,9 +60,10 @@ class FFmpegService {
   /// [AppConstants.conversionTimeout].
   ///
   /// Returns a [ConversionResult] indicating success or failure.
-  Future<ConversionResult> convertVideoToMp3({
+  Future<ConversionResult> convertVideoToAudio({
     required String inputPath,
     required String outputPath,
+    required AudioFormat format,
     required AudioQuality quality,
     required int videoDurationMs,
     bool normalizeVolume = false,
@@ -75,15 +77,62 @@ class FFmpegService {
     }
 
     final audioFilter = normalizeVolume ? '-af loudnorm ' : '';
+
+    // Build format-specific FFmpeg parameters
+    // Using simpler codec names that are more widely supported
+    String codecParams;
+    String formatParam = '';
+
+    switch (format) {
+      case AudioFormat.mp3:
+        codecParams = '-c:a libmp3lame -q:a 2 -b:a ${quality.kbps}k';
+      case AudioFormat.aac:
+        // Raw AAC file - using native aac encoder
+        codecParams = '-c:a aac -b:a ${quality.kbps}k -strict experimental';
+        formatParam = '-f adts'; // ADTS format for raw AAC
+      case AudioFormat.opus:
+        // Opus audio
+        codecParams = '-c:a libopus -b:a ${quality.kbps}k -vbr on';
+        formatParam = '-f opus';
+      case AudioFormat.flac:
+        // FLAC lossless
+        codecParams = '-c:a flac -compression_level 8';
+      case AudioFormat.wav:
+        // WAV uncompressed
+        codecParams = '-c:a pcm_s16le';
+        formatParam = '-f wav';
+      case AudioFormat.ogg:
+        // OGG Vorbis
+        codecParams = '-c:a libvorbis -q:a 6 -b:a ${quality.kbps}k';
+        formatParam = '-f ogg';
+      case AudioFormat.m4a:
+        // M4A (AAC in MP4 container)
+        codecParams = '-c:a aac -b:a ${quality.kbps}k -strict experimental';
+        formatParam = '-f mp4';
+      case AudioFormat.wma:
+        // WMA - fallback to AAC in M4A if WMA not available
+        codecParams = '-c:a aac -b:a ${quality.kbps}k -strict experimental';
+        formatParam = '-f mp4';
+        Logger.warning(
+          'WMA codec may not be supported, using AAC fallback',
+          'FFmpegService',
+        );
+    }
+
     final command =
         '-i "$inputPath" -vn '
         '$audioFilter'
         '-ar ${AppConstants.audioSampleRate} '
         '-ac ${AppConstants.audioChannels} '
-        '-b:a ${quality.kbps}k '
+        '$codecParams '
+        '${formatParam.isNotEmpty ? "$formatParam " : ""}'
+        '-y '
         '"$outputPath"';
 
-    Logger.info('Starting conversion: $command', 'FFmpegService');
+    Logger.info(
+      'Starting conversion to ${format.displayName}: $command',
+      'FFmpegService',
+    );
 
     // Enable statistics so progress callbacks fire.
     await FFmpegKitConfig.enableStatistics();
@@ -169,8 +218,11 @@ class FFmpegService {
     if (lower.contains('invalid data') || lower.contains('moov atom')) {
       return 'The video file appears to be corrupt or unsupported.';
     }
+    if (lower.contains('encoder') && lower.contains('not found')) {
+      return 'The selected audio format is not supported by your device. Please try MP3 or AAC.';
+    }
     if (lower.contains('codec') || lower.contains('decoder')) {
-      return 'This video format is not supported.';
+      return 'This video or audio format is not supported. Please try MP3.';
     }
     if (lower.contains('permission denied')) {
       return 'Storage permission denied. Please grant access in settings.';
@@ -178,8 +230,30 @@ class FFmpegService {
     if (lower.contains('no space left')) {
       return 'Not enough storage space. Free up some space and try again.';
     }
+    if (lower.contains('unknown encoder') ||
+        lower.contains('encoder not found')) {
+      return 'This audio format is not supported. Please try MP3 or M4A.';
+    }
 
-    return 'Conversion failed. Please try again.';
+    // Include a snippet of the actual error for debugging
+    final lines = logs.split('\n');
+    final errorLines = lines
+        .where(
+          (line) =>
+              line.toLowerCase().contains('error') ||
+              line.toLowerCase().contains('failed') ||
+              line.toLowerCase().contains('unable'),
+        )
+        .take(2);
+
+    if (errorLines.isNotEmpty) {
+      Logger.error(
+        'FFmpeg error details: ${errorLines.join("; ")}',
+        tag: 'FFmpegService',
+      );
+    }
+
+    return 'Conversion failed. Please try a different format or contact support.';
   }
 
   /// Cancels the currently running conversion, if any.
