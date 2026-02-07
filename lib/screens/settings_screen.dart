@@ -141,21 +141,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 context: context,
                 applicationName: AppStrings.appNameAbout,
                 applicationVersion: AppStrings.versionValue,
-                applicationIcon: Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF5B9BF6), Color(0xFF3B6DE0)],
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(
-                    Icons.movie_creation_rounded,
-                    color: Colors.white,
-                    size: 28,
+                applicationIcon: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Image.asset(
+                    'assets/icon/app_icon.png',
+                    width: 56,
+                    height: 56,
+                    fit: BoxFit.cover,
                   ),
                 ),
                 applicationLegalese: AppStrings.copyright,

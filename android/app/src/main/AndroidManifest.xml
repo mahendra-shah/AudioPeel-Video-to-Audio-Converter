@@ -4,6 +4,7 @@
         android:label="Voca: Video to Audio"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:requestLegacyExternalStorage="true">
         
         <!-- AdMob App ID: reads from res/values/strings.xml. -->
