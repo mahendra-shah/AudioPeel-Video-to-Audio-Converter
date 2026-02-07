@@ -8,6 +8,7 @@ import '../constants/app_constants.dart';
 import '../constants/app_strings.dart';
 import '../providers/ad_provider.dart';
 import '../providers/conversion_provider.dart';
+import '../providers/history_provider.dart';
 import '../services/storage_service.dart';
 import '../utils/format_utils.dart';
 import '../widgets/common/banner_ad_widget.dart';
@@ -499,7 +500,11 @@ class _SplitCapsuleActions extends StatelessWidget {
       ),
     ).then((confirmed) async {
       if (confirmed == true && context.mounted) {
+        // Delete the file from disk AND the database record.
         await StorageService().deleteFile(path);
+        if (context.mounted) {
+          await context.read<HistoryProvider>().deleteConversionByPath(path);
+        }
         if (context.mounted) {
           _goHome(context);
         }

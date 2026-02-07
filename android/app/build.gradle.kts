@@ -50,12 +50,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
+            // R8 code minification is disabled because it strips code
+            // needed by FFmpeg Kit, file_picker, video_thumbnail, and
+            // platform channels — causing the release APK to break.
+            // Resource shrinking still reduces APK size.
+            isMinifyEnabled = false
+            isShrinkResources = false
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {

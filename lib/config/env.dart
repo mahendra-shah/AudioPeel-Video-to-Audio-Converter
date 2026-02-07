@@ -27,33 +27,33 @@ abstract final class Env {
   static const String _testInterstitialAdUnitId =
       'ca-app-pub-3940256099942544/1033173712';
   static const String _testAdmobAppId =
-      'ca-app-pub-3940256099942544~3347511713';
+      'ca-app-pub-5583038215571668~2159652952';
 
-  /// Production ad-unit IDs injected at build time.
+  /// Production ad-unit IDs (your real AdMob unit IDs).
   static const String _prodBannerAdUnitId = String.fromEnvironment(
     'BANNER_AD_UNIT_ID',
+    defaultValue: 'ca-app-pub-5583038215571668/8873333176',
   );
   static const String _prodInterstitialAdUnitId = String.fromEnvironment(
     'INTERSTITIAL_AD_UNIT_ID',
+    defaultValue: 'ca-app-pub-5583038215571668/1367114336',
   );
-  static const String _prodAdmobAppId = String.fromEnvironment('ADMOB_APP_ID');
+  static const String _prodAdmobAppId = String.fromEnvironment(
+    'ADMOB_APP_ID',
+    defaultValue: 'ca-app-pub-5583038215571668~2159652952',
+  );
 
   /// Resolved banner ad-unit ID (test or production).
   static String get bannerAdUnitId =>
-      isProduction && _prodBannerAdUnitId.isNotEmpty
-      ? _prodBannerAdUnitId
-      : _testBannerAdUnitId;
+      isProduction ? _prodBannerAdUnitId : _testBannerAdUnitId;
 
   /// Resolved interstitial ad-unit ID (test or production).
   static String get interstitialAdUnitId =>
-      isProduction && _prodInterstitialAdUnitId.isNotEmpty
-      ? _prodInterstitialAdUnitId
-      : _testInterstitialAdUnitId;
+      isProduction ? _prodInterstitialAdUnitId : _testInterstitialAdUnitId;
 
   /// Resolved AdMob app ID (test or production).
-  static String get admobAppId => isProduction && _prodAdmobAppId.isNotEmpty
-      ? _prodAdmobAppId
-      : _testAdmobAppId;
+  static String get admobAppId =>
+      isProduction ? _prodAdmobAppId : _testAdmobAppId;
 
   // ─── IAP ───────────────────────────────────────────────────────────
 

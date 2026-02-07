@@ -94,6 +94,24 @@ class HistoryProvider extends ChangeNotifier {
     }
   }
 
+  /// Deletes a conversion by its output audio file path and refreshes.
+  Future<void> deleteConversionByPath(String outputAudioPath) async {
+    try {
+      await _databaseService.deleteConversionByPath(outputAudioPath);
+      _conversions = _conversions
+          .where((c) => c.outputAudioPath != outputAudioPath)
+          .toList();
+      notifyListeners();
+    } on Exception catch (e, st) {
+      Logger.error(
+        'Failed to delete conversion path=$outputAudioPath',
+        error: e,
+        stackTrace: st,
+        tag: 'HistoryProvider',
+      );
+    }
+  }
+
   /// Clears all conversion history.
   Future<void> clearAll() async {
     try {

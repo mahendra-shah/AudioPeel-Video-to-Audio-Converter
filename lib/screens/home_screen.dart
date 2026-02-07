@@ -76,37 +76,16 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isPickingVideo = true);
 
     final conversion = context.read<ConversionProvider>();
-    final previousVideo = conversion.selectedVideo?.path;
-    await conversion.selectVideo();
+    final picked = await conversion.selectVideo();
 
     if (!mounted) return;
 
     // Only navigate if a NEW video was actually picked (not cancelled).
-    final currentVideo = conversion.selectedVideo?.path;
-    if (currentVideo != null && currentVideo != previousVideo) {
-      // Navigate immediately — keep _isPickingVideo true so the home
-      // screen does not visibly flash during the route transition.
+    if (picked) {
+      // Navigate immediately without delay.
       await Navigator.of(context).push(
-        PageRouteBuilder<void>(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const ConversionOptionsScreen(),
-          transitionDuration: const Duration(milliseconds: 300),
-          reverseTransitionDuration: const Duration(milliseconds: 250),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position:
-                    Tween<Offset>(
-                      begin: const Offset(0.05, 0),
-                      end: Offset.zero,
-                    ).animate(
-                      CurvedAnimation(parent: animation, curve: Curves.easeOut),
-                    ),
-                child: child,
-              ),
-            );
-          },
+        MaterialPageRoute<void>(
+          builder: (_) => const ConversionOptionsScreen(),
         ),
       );
       // Refresh recent list when returning from conversion flow.
@@ -260,55 +239,60 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: _buildAppBar(context),
-      body: Column(
-        children: [
-          // ── Hero Graphic (takes available space) ─────────
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.paddingScreen,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // ── Hero Graphic with orbiting badges ───────
-                  Flexible(
-                    child: _HeroOrbitGraphic(
-                      compact: hasRecents,
-                      onSelect: _onSelectVideo,
-                      selectButtonKey: _selectButtonKey,
+      body: _isPickingVideo
+          ? const SizedBox.shrink() // Hide content during video selection
+          : Column(
+              children: [
+                // ── Hero Graphic (takes available space) ─────────
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppConstants.paddingScreen,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // ── Hero Graphic with orbiting badges ───────
+                        Flexible(
+                          child: _HeroOrbitGraphic(
+                            compact: hasRecents,
+                            onSelect: _onSelectVideo,
+                            selectButtonKey: _selectButtonKey,
+                          ),
+                        ),
+
+                        const SizedBox(height: AppConstants.spacingSmall),
+
+                        // ── Subtitle text ──────────────────────────
+                        Text(
+                          'Tap the button to start converting\nyour videos to audio',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodySmall?.color,
+                                height: 1.5,
+                              ),
+                        ),
+
+                        // ── Feature cards (hidden when recents exist) ──
+                        if (!hasRecents) ...[
+                          const SizedBox(height: AppConstants.spacingElement),
+                          const _FeatureCardsRow(),
+                        ],
+                      ],
                     ),
                   ),
+                ),
 
-                  const SizedBox(height: AppConstants.spacingSmall),
+                // ── Recent conversions (fixed at bottom) ────────
+                if (hasRecents) _buildRecentSection(context),
 
-                  // ── Subtitle text ──────────────────────────
-                  Text(
-                    'Tap the button to start converting\nyour videos to audio',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).textTheme.bodySmall?.color,
-                      height: 1.5,
-                    ),
-                  ),
-
-                  // ── Feature cards (hidden when recents exist) ──
-                  if (!hasRecents) ...[
-                    const SizedBox(height: AppConstants.spacingElement),
-                    const _FeatureCardsRow(),
-                  ],
-                ],
-              ),
+                // Sticky banner ad at the bottom.
+                const BannerAdWidget(),
+              ],
             ),
-          ),
-
-          // ── Recent conversions (fixed at bottom) ────────
-          if (hasRecents) _buildRecentSection(context),
-
-          // Sticky banner ad at the bottom.
-          const BannerAdWidget(),
-        ],
-      ),
     );
   }
 

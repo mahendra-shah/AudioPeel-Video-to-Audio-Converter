@@ -170,6 +170,23 @@ class DatabaseService {
     return count;
   }
 
+  /// Deletes a conversion by its output audio path.
+  ///
+  /// Returns the number of rows removed.
+  Future<int> deleteConversionByPath(String outputAudioPath) async {
+    final db = await database;
+    final count = await db.delete(
+      'conversions',
+      where: 'output_audio_path = ?',
+      whereArgs: [outputAudioPath],
+    );
+    Logger.debug(
+      'Deleted conversion path=$outputAudioPath (rows=$count)',
+      'DatabaseService',
+    );
+    return count;
+  }
+
   /// Clears all conversion history. Returns the number of rows removed.
   Future<int> clearAllConversions() async {
     final db = await database;

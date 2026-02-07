@@ -73,14 +73,22 @@ class ConversionProvider extends ChangeNotifier {
   // ─── Actions ────────────────────────────────────────────────────────
 
   /// Opens the system file picker and selects a video file.
-  Future<void> selectVideo() async {
+  ///
+  /// Returns `true` when a new video was successfully picked,
+  /// `false` when the user cancelled or an error occurred.
+  ///
+  /// **Important:** this method intentionally does **not** call
+  /// [notifyListeners] so the caller can navigate first and avoid
+  /// an unnecessary home-screen rebuild. Call [notifyListeners]
+  /// yourself once the navigation is complete if needed.
+  Future<bool> selectVideo() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.video,
         allowMultiple: false,
       );
 
-      if (result == null || result.files.single.path == null) return;
+      if (result == null || result.files.single.path == null) return false;
 
       final path = result.files.single.path!;
       _selectedVideo = File(path);
@@ -100,7 +108,7 @@ class ConversionProvider extends ChangeNotifier {
         'ConversionProvider',
       );
 
-      notifyListeners();
+      return true;
     } on Exception catch (e, st) {
       Logger.error(
         'Failed to select video',
@@ -108,6 +116,7 @@ class ConversionProvider extends ChangeNotifier {
         stackTrace: st,
         tag: 'ConversionProvider',
       );
+      return false;
     }
   }
 

@@ -10,7 +10,6 @@ import '../providers/ad_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/iap_service.dart';
 import '../services/storage_service.dart';
-import '../utils/format_utils.dart';
 
 /// Settings screen with grouped sections matching the design:
 /// Remove Ads CTA, Audio Settings, Appearance & Behavior, Storage, About.
@@ -24,7 +23,6 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _storageService = StorageService();
   String _outputPath = '';
-  int _cacheSizeBytes = 0;
 
   @override
   void initState() {
@@ -34,11 +32,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadStorageInfo() async {
     final path = await _storageService.outputDirectory();
-    final cache = await _storageService.cacheSize();
     if (mounted) {
       setState(() {
         _outputPath = path;
-        _cacheSizeBytes = cache;
       });
     }
   }
@@ -67,6 +63,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: AppConstants.spacingSection),
           ],
 
+          // ── Appearance & Behavior ─────────────────────────────────
+          const _SectionHeader(title: AppStrings.appearanceAndBehavior),
+          const SizedBox(height: AppConstants.spacingSmall),
+          _ThemeModeTile(
+            currentMode: settings.themeMode,
+            onChanged: settings.setThemeMode,
+          ),
+
+          const SizedBox(height: AppConstants.spacingSection),
+
           // ── Audio Settings ────────────────────────────────────────
           const _SectionHeader(title: AppStrings.audioSettings),
           const SizedBox(height: AppConstants.spacingSmall),
@@ -89,26 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: AppConstants.spacingSection),
 
-          // ── Appearance & Behavior ─────────────────────────────────
-          const _SectionHeader(title: AppStrings.appearanceAndBehavior),
-          const SizedBox(height: AppConstants.spacingSmall),
-          _ThemeModeTile(
-            currentMode: settings.themeMode,
-            onChanged: settings.setThemeMode,
-          ),
-          const SizedBox(height: AppConstants.spacingSmall),
-          _ToggleTile(
-            icon: Icons.auto_delete_rounded,
-            iconColor: AppColors.error,
-            title: AppStrings.autoDeleteOriginal,
-            subtitle: AppStrings.autoDeleteDescription,
-            value: settings.autoDeleteOriginal,
-            onChanged: (_) => settings.toggleAutoDeleteOriginal(),
-          ),
-
-          const SizedBox(height: AppConstants.spacingSection),
-
-          // ── Storage ───────────────────────────────────────────────
+          // ── Storage & Files ───────────────────────────────────────
           const _SectionHeader(title: AppStrings.storage),
           const SizedBox(height: AppConstants.spacingSmall),
           _NavigationTile(
@@ -119,12 +106,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: _onChangeOutputPath,
           ),
           const SizedBox(height: AppConstants.spacingSmall),
-          _NavigationTile(
-            icon: Icons.cleaning_services_rounded,
-            iconColor: AppColors.warning,
-            title: AppStrings.clearCache,
-            subtitle: FormatUtils.fileSize(_cacheSizeBytes),
-            onTap: _onClearCache,
+          _ToggleTile(
+            icon: Icons.auto_delete_rounded,
+            iconColor: AppColors.error,
+            title: AppStrings.autoDeleteOriginal,
+            subtitle: AppStrings.autoDeleteDescription,
+            value: settings.autoDeleteOriginal,
+            onChanged: (_) => settings.toggleAutoDeleteOriginal(),
           ),
 
           const SizedBox(height: AppConstants.spacingSection),
@@ -227,18 +215,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         settings.setDefaultQuality(quality.kbps);
       }
     });
-  }
-
-  // ─── Clear Cache ────────────────────────────────────────────────────
-
-  Future<void> _onClearCache() async {
-    await _storageService.clearCache();
-    if (mounted) {
-      setState(() => _cacheSizeBytes = 0);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text(AppStrings.cacheCleared)));
-    }
   }
 
   // ─── Change Output Path ─────────────────────────────────────────────

@@ -40,10 +40,10 @@ class _ConversionOptionsScreenState extends State<ConversionOptionsScreen> {
   /// Lets the user pick a different video without going back to home.
   Future<void> _selectAnotherVideo(BuildContext context) async {
     final conversion = context.read<ConversionProvider>();
-    await conversion.selectVideo();
+    final picked = await conversion.selectVideo();
     if (!context.mounted) return;
     // If a new video was picked, refresh the page state.
-    if (conversion.selectedVideo != null) {
+    if (picked) {
       final settings = context.read<SettingsProvider>();
       conversion.selectQuality(
         AudioQuality.fromKbps(settings.defaultQualityKbps),
@@ -53,6 +53,10 @@ class _ConversionOptionsScreenState extends State<ConversionOptionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch the video path so the list rebuilds with fresh keys
+    // when the user picks a different video via "Change".
+    final videoPath = context.watch<ConversionProvider>().selectedVideo?.path;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -75,18 +79,18 @@ class _ConversionOptionsScreenState extends State<ConversionOptionsScreen> {
               padding: const EdgeInsets.symmetric(
                 horizontal: AppConstants.paddingScreen,
               ),
-              children: const [
-                SizedBox(height: AppConstants.spacingElement),
-                _VideoPreviewCard(),
-                SizedBox(height: AppConstants.spacingElement),
-                _VideoInfoCard(),
-                SizedBox(height: AppConstants.spacingSection),
-                _OutputNameSection(),
-                SizedBox(height: AppConstants.spacingSection),
-                _QualitySection(),
-                SizedBox(height: AppConstants.spacingSection),
-                _ConvertButton(),
-                SizedBox(height: AppConstants.spacingElement),
+              children: [
+                const SizedBox(height: AppConstants.spacingElement),
+                _VideoPreviewCard(key: ValueKey('preview_$videoPath')),
+                const SizedBox(height: AppConstants.spacingElement),
+                const _VideoInfoCard(),
+                const SizedBox(height: AppConstants.spacingSection),
+                _OutputNameSection(key: ValueKey('name_$videoPath')),
+                const SizedBox(height: AppConstants.spacingSection),
+                const _QualitySection(),
+                const SizedBox(height: AppConstants.spacingSection),
+                const _ConvertButton(),
+                const SizedBox(height: AppConstants.spacingElement),
               ],
             ),
           ),
@@ -101,7 +105,7 @@ class _ConversionOptionsScreenState extends State<ConversionOptionsScreen> {
 
 /// Rounded thumbnail with a semi-transparent play icon overlay.
 class _VideoPreviewCard extends StatefulWidget {
-  const _VideoPreviewCard();
+  const _VideoPreviewCard({super.key});
 
   @override
   State<_VideoPreviewCard> createState() => _VideoPreviewCardState();
@@ -301,7 +305,7 @@ class _InfoRow extends StatelessWidget {
 
 /// "Output Name" title and a text field with a ".mp3" suffix chip.
 class _OutputNameSection extends StatefulWidget {
-  const _OutputNameSection();
+  const _OutputNameSection({super.key});
 
   @override
   State<_OutputNameSection> createState() => _OutputNameSectionState();

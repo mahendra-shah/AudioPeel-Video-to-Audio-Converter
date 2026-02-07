@@ -27,6 +27,11 @@
 -dontwarn kotlin.**
 -dontwarn kotlinx.**
 
+# ─── Google Play Core (deferred components — not used) ────────────
+-dontwarn com.google.android.play.core.splitcompat.**
+-dontwarn com.google.android.play.core.splitinstall.**
+-dontwarn com.google.android.play.core.tasks.**
+
 # ─── General ──────────────────────────────────────────────────────
 -keepattributes *Annotation*
 -keepattributes Signature

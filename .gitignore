@@ -69,5 +69,7 @@ ehthumbs.db
 Desktop.ini
 ._*
 
+.vscode/
+
 # Flutter log files
 flutter_*.log
