@@ -1,4 +1,4 @@
-package com.mp3extract.mp3_extract
+package com.mcore.audiopeel
 
 import android.content.ContentValues
 import android.content.Intent
@@ -13,7 +13,7 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.File
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.mp3extract.app/ringtone"
+    private val CHANNEL = "com.mcore.audiopeel/ringtone"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

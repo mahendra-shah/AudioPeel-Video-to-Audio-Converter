@@ -10,32 +10,12 @@ class AdProvider extends ChangeNotifier {
   int _conversionCount = 0;
   InterstitialAd? _interstitialAd;
   bool _isInterstitialReady = false;
-  bool _adsRemoved = false;
-
-  /// Whether ads have been removed via IAP.
-  bool get adsRemoved => _adsRemoved;
 
   /// Whether an interstitial ad is loaded and ready to show.
-  bool get isInterstitialReady => _isInterstitialReady && !_adsRemoved;
-
-  /// Call this after purchasing ad removal.
-  void markAdsRemoved() {
-    _adsRemoved = true;
-    _interstitialAd?.dispose();
-    _interstitialAd = null;
-    _isInterstitialReady = false;
-    notifyListeners();
-  }
-
-  /// Syncs the ads-removed flag from [SettingsProvider].
-  void syncAdsRemoved(bool removed) {
-    _adsRemoved = removed;
-    notifyListeners();
-  }
+  bool get isInterstitialReady => _isInterstitialReady;
 
   /// Preloads an interstitial ad.
   void loadInterstitial() {
-    if (_adsRemoved) return;
 
     InterstitialAd.load(
       adUnitId: Env.interstitialAdUnitId,
@@ -63,8 +43,6 @@ class AdProvider extends ChangeNotifier {
   ///
   /// Returns `true` if an ad was shown.
   Future<bool> showInterstitialIfReady() async {
-    if (_adsRemoved) return false;
-
     _conversionCount++;
 
     if (_conversionCount % AppConstants.interstitialAdFrequency != 0) {
@@ -112,8 +90,6 @@ class AdProvider extends ChangeNotifier {
 
   /// Creates a banner ad widget-ready [BannerAd].
   BannerAd? createBannerAd() {
-    if (_adsRemoved) return null;
-
     return BannerAd(
       adUnitId: Env.bannerAdUnitId,
       size: AdSize.banner,

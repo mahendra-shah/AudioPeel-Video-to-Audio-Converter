@@ -15,7 +15,6 @@ class SettingsProvider extends ChangeNotifier {
 
   ThemeMode _themeMode = ThemeMode.system;
   int _defaultQualityKbps = AppConstants.defaultQualityKbps;
-  bool _adsRemoved = false;
   bool _normalizeVolume = false;
   bool _autoDeleteOriginal = false;
 
@@ -31,9 +30,6 @@ class SettingsProvider extends ChangeNotifier {
 
   /// The user's preferred audio quality in kbps.
   int get defaultQualityKbps => _defaultQualityKbps;
-
-  /// Whether the user has purchased ad removal.
-  bool get adsRemoved => _adsRemoved;
 
   /// Whether volume normalisation is enabled during conversion.
   bool get normalizeVolume => _normalizeVolume;
@@ -53,7 +49,6 @@ class SettingsProvider extends ChangeNotifier {
       _defaultQualityKbps =
           prefs.getInt(AppConstants.prefDefaultQuality) ??
           AppConstants.defaultQualityKbps;
-      _adsRemoved = prefs.getBool(AppConstants.prefAdsRemoved) ?? false;
       _normalizeVolume = prefs.getBool(_prefNormalizeVolume) ?? false;
       _autoDeleteOriginal = prefs.getBool(_prefAutoDelete) ?? false;
     } on Exception catch (e, st) {
@@ -113,13 +108,6 @@ class SettingsProvider extends ChangeNotifier {
     _autoDeleteOriginal = !_autoDeleteOriginal;
     notifyListeners();
     await _saveBool(_prefAutoDelete, _autoDeleteOriginal);
-  }
-
-  /// Marks ads as removed (called after successful IAP).
-  Future<void> markAdsRemoved() async {
-    _adsRemoved = true;
-    notifyListeners();
-    await _saveBool(AppConstants.prefAdsRemoved, true);
   }
 
   // ─── Private ────────────────────────────────────────────────────────

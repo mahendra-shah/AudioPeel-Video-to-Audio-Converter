@@ -1,6 +1,6 @@
 # Release Build Guide
 
-This document explains how to build MP3 Extract for release and publish to the Google Play Store.
+This document explains how to build AudioPeel for release and publish to the Google Play Store.
 
 ---
 
@@ -20,9 +20,9 @@ This document explains how to build MP3 Extract for release and publish to the G
 
 ```bash
 keytool -genkey -v \
-  -keystore ~/mp3extract-release.jks \
+  -keystore ~/audiopeel-release.jks \
   -keyalg RSA -keysize 2048 -validity 10000 \
-  -alias mp3extract
+  -alias audiopeel
 ```
 
 > **Keep this file safe.** If lost you can never update the app on the Play Store.
@@ -40,8 +40,8 @@ Edit `android/key.properties`:
 ```properties
 storePassword=YOUR_STORE_PASSWORD
 keyPassword=YOUR_KEY_PASSWORD
-keyAlias=mp3extract
-storeFile=/Users/you/mp3extract-release.jks
+keyAlias=audiopeel
+storeFile=/Users/you/audiopeel-release.jks
 ```
 
 > `key.properties` is git-ignored. Never commit it.
@@ -140,7 +140,7 @@ flutter build appbundle --release --dart-define-from-file=dart_define.env
 ## Play Store Submission
 
 1. Go to [Google Play Console](https://play.google.com/console)
-2. Create a new app → "MP3 Extract"
+2. Create a new app → "AudioPeel"
 3. Upload the `.aab` file
 4. Fill in store listing (see `LAUNCH_CHECKLIST.md`)
 5. Complete content rating questionnaire

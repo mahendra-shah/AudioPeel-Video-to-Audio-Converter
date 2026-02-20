@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../widgets/common/audio_icon.dart';
+
 import '../constants/app_colors.dart';
 import '../constants/app_constants.dart';
 import '../constants/app_strings.dart';
@@ -107,9 +109,8 @@ class _ErrorIllustration extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Disc icon.
-          Icon(
-            Icons.album_rounded,
+          // Branded audio disc icon.
+          AudioIcon(
             size: 140,
             color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
           ),

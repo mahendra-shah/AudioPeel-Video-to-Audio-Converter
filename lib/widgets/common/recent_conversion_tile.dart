@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../constants/app_colors.dart';
 import '../../constants/app_constants.dart';
+import '../../constants/app_strings.dart';
 import '../../models/audio_file.dart';
 import '../../utils/format_utils.dart';
+import 'audio_icon.dart';
 
 /// A compact list tile for the "Recent Conversions" section on the home
 /// screen.
@@ -15,6 +17,7 @@ class RecentConversionTile extends StatelessWidget {
     this.onTap,
     this.onShare,
     this.onRingtone,
+    this.onDelete,
     super.key,
   });
 
@@ -30,6 +33,9 @@ class RecentConversionTile extends StatelessWidget {
   /// Called when the "Set as Ringtone" action is triggered.
   final VoidCallback? onRingtone;
 
+  /// Called when the delete action is triggered.
+  final VoidCallback? onDelete;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -43,18 +49,18 @@ class RecentConversionTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Blue circle with music note icon.
+            // Audio file thumbnail with music icon
             Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
-                Icons.music_note_rounded,
+                Icons.audiotrack_rounded,
+                size: 28,
                 color: AppColors.primary,
-                size: 22,
               ),
             ),
             const SizedBox(width: AppConstants.spacingSmall + 4),
@@ -85,34 +91,46 @@ class RecentConversionTile extends StatelessWidget {
               ),
             ),
 
-            // Ringtone icon.
-            if (onRingtone != null)
-              IconButton(
-                icon: Icon(
-                  Icons.ring_volume_outlined,
-                  size: 20,
-                  color: theme.textTheme.bodySmall?.color,
-                ),
-                onPressed: onRingtone,
-                tooltip: 'Set as Ringtone',
-                constraints: const BoxConstraints(minWidth: 40, minHeight: 44),
+            // 3-dot menu with all actions.
+            PopupMenuButton<String>(
+              icon: Icon(
+                Icons.more_vert,
+                size: 20,
+                color: theme.textTheme.bodySmall?.color,
               ),
-
-            // Share icon.
-            if (onShare != null)
-              IconButton(
-                icon: Icon(
-                  Icons.share_outlined,
-                  size: 20,
-                  color: theme.textTheme.bodySmall?.color,
-                ),
-                onPressed: onShare,
-                tooltip: 'Share',
-                constraints: const BoxConstraints(minWidth: 40, minHeight: 44),
-              ),
+              onSelected: (action) => _handleAction(action),
+              itemBuilder: (_) => [
+                if (onShare != null)
+                  const PopupMenuItem(
+                    value: 'share',
+                    child: Text(AppStrings.shareConversion),
+                  ),
+                if (onRingtone != null)
+                  const PopupMenuItem(
+                    value: 'ringtone',
+                    child: Text('Set as Ringtone'),
+                  ),
+                if (onDelete != null)
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text(AppStrings.deleteConversion),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
     );
+  }
+
+  void _handleAction(String action) {
+    switch (action) {
+      case 'share':
+        onShare?.call();
+      case 'ringtone':
+        onRingtone?.call();
+      case 'delete':
+        onDelete?.call();
+    }
   }
 }

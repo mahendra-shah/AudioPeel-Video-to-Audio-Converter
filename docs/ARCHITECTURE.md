@@ -1,6 +1,6 @@
 # Architecture
 
-MP3 Extract follows **MVVM + Repository** with a clean three-layer separation.
+AudioPeel follows **MVVM + Repository** with a clean three-layer separation.
 
 ## Layer Diagram
 

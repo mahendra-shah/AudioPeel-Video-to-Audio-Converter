@@ -54,12 +54,4 @@ abstract final class Env {
   /// Resolved AdMob app ID (test or production).
   static String get admobAppId =>
       isProduction ? _prodAdmobAppId : _testAdmobAppId;
-
-  // ─── IAP ───────────────────────────────────────────────────────────
-
-  /// Product ID for the "Remove Ads" non-consumable purchase.
-  static const String removeAdsProductId = String.fromEnvironment(
-    'REMOVE_ADS_PRODUCT_ID',
-    defaultValue: 'remove_ads',
-  );
 }

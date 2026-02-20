@@ -15,6 +15,8 @@ import '../providers/conversion_provider.dart';
 import '../providers/history_provider.dart';
 import '../services/onboarding_service.dart';
 import '../services/ringtone_service.dart';
+import '../services/storage_service.dart';
+import '../widgets/common/audio_icon.dart';
 import '../widgets/common/banner_ad_widget.dart';
 import '../widgets/common/recent_conversion_tile.dart';
 import 'conversion_options_screen.dart';
@@ -107,6 +109,35 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onPlayFile(AudioFile file) {
     OpenFilex.open(file.outputAudioPath, type: 'audio/mpeg');
+  }
+
+  void _confirmDeleteRecent(AudioFile file) {
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(AppStrings.deleteConversion),
+        content: Text('Delete "${file.outputAudioName}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text(AppStrings.no),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(AppStrings.yes),
+          ),
+        ],
+      ),
+    ).then((confirmed) async {
+      if (confirmed == true && mounted) {
+        await StorageService().deleteFile(file.outputAudioPath);
+        if (mounted && file.id != null) {
+          context.read<HistoryProvider>().deleteConversion(file.id!);
+          // Refresh the recent conversions list.
+          _loadRecentConversions();
+        }
+      }
+    });
   }
 
   Future<void> _onSetRingtone(AudioFile file) async {
@@ -308,14 +339,34 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Container(
           width: 32,
           height: 32,
-          decoration: const BoxDecoration(
-            color: AppColors.primary,
+          decoration: BoxDecoration(
             shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.3),
+                blurRadius: 8,
+                spreadRadius: 0,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          child: const Icon(
-            Icons.music_note_rounded,
-            color: Colors.white,
-            size: 18,
+          child: ClipOval(
+            child: Image.asset(
+              'android_icon/audiopeel-nobg.png',
+              width: 32,
+              height: 32,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                // Fallback to branded icon if asset fails to load
+                return Container(
+                  color: AppColors.primary,
+                  child: AudioIcon(
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -407,6 +458,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () => _onPlayFile(file),
               onShare: () => _onShareFile(file),
               onRingtone: () => _onSetRingtone(file),
+              onDelete: () => _confirmDeleteRecent(file),
             ),
           )
           .toList(),

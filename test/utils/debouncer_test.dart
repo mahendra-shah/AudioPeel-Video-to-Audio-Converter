@@ -1,6 +1,6 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mp3_extract/utils/debouncer.dart';
+import 'package:audiopeel/utils/debouncer.dart';
 
 void main() {
   group('Debouncer', () {

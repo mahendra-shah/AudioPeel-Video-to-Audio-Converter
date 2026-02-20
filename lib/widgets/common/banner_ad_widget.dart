@@ -26,8 +26,6 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
   void _loadAd() {
     final adProvider = context.read<AdProvider>();
-    if (adProvider.adsRemoved) return;
-
     _bannerAd = adProvider.createBannerAd();
     _bannerAd?.load().then((_) {
       if (mounted) setState(() => _isLoaded = true);
@@ -42,9 +40,7 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final adsRemoved = context.watch<AdProvider>().adsRemoved;
-
-    if (adsRemoved || !_isLoaded || _bannerAd == null) {
+    if (!_isLoaded || _bannerAd == null) {
       return const SizedBox.shrink();
     }
 

@@ -1,4 +1,4 @@
-# Voca:Video To Audio Converter
+# AudioPeel:Video To Audio Converter
 
 Fast, private, offline video-to-MP3 converter for Android.
 
@@ -63,7 +63,7 @@ lib/
 ```bash
 # Clone
 git clone <repo-url>
-cd mp3_extract
+cd audiopeel
 
 # Install dependencies
 flutter pub get

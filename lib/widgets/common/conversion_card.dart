@@ -4,6 +4,7 @@ import '../../constants/app_colors.dart';
 import '../../constants/app_constants.dart';
 import '../../models/audio_file.dart';
 import '../../utils/format_utils.dart';
+import 'audio_icon.dart';
 
 /// A compact list tile for a completed conversion.
 ///
@@ -48,21 +49,11 @@ class ConversionCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // MP3 icon.
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(
-                    AppConstants.spacingSmall,
-                  ),
-                ),
-                child: const Icon(
-                  Icons.music_note_rounded,
-                  color: AppColors.primary,
-                  size: 22,
-                ),
+              // Branded audio icon in rounded container
+              AudioIcon(
+                size: 22,
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(AppConstants.spacingSmall),
               ),
               const SizedBox(width: AppConstants.spacingSmall + 4),
 

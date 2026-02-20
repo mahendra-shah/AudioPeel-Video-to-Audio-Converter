@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mp3_extract/models/audio_quality.dart';
-import 'package:mp3_extract/models/conversion_task.dart';
+import 'package:audiopeel/models/audio_quality.dart';
+import 'package:audiopeel/models/conversion_task.dart';
 
 void main() {
   group('ConversionStatus', () {

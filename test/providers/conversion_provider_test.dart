@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mp3_extract/models/audio_quality.dart';
-import 'package:mp3_extract/providers/conversion_provider.dart';
+import 'package:audiopeel/models/audio_quality.dart';
+import 'package:audiopeel/providers/conversion_provider.dart';
 
 /// Validates public API of [ConversionProvider] that does not require
 /// file-system or FFmpeg access.  Full conversion-flow tests belong in

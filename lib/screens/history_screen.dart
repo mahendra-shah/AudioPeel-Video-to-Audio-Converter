@@ -3,6 +3,8 @@ import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../widgets/common/audio_icon.dart';
+
 import '../constants/app_colors.dart';
 import '../constants/app_constants.dart';
 import '../constants/app_strings.dart';
@@ -232,8 +234,11 @@ class _HistoryList extends StatelessWidget {
     }
 
     if (provider.isEmpty) {
-      return const EmptyState(
-        icon: Icons.music_off_rounded,
+      return EmptyState(
+        iconWidget: AudioIcon(
+          size: 72,
+          color: AppColors.primary.withValues(alpha: 0.3),
+        ),
         title: AppStrings.noHistoryYet,
         subtitle: AppStrings.noHistoryDescription,
       );
@@ -406,18 +411,18 @@ class _HistoryTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Blue circle with music note.
+            // Blue circle with branded audio icon.
             Container(
-              width: 44,
-              height: 44,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
-                Icons.music_note_rounded,
+                Icons.audiotrack_rounded,
+                size: 28,
                 color: AppColors.primary,
-                size: 20,
               ),
             ),
             const SizedBox(width: AppConstants.spacingSmall + 4),

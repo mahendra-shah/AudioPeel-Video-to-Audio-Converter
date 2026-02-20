@@ -1,4 +1,4 @@
-# Launch Checklist — MP3 Extract
+# Launch Checklist — AudioPeel
 
 Complete every item before submitting to the Play Store.
 
@@ -109,7 +109,7 @@ Complete every item before submitting to the Play Store.
 
 ## Store Listing
 
-- [ ] **App Name**: MP3 Extract — Video to MP3
+- [ ] **App Name**: AudioPeel — Video to MP3
 - [ ] **Category**: Music & Audio
 - [ ] **Tags**: converter, audio, mp3, video, offline, utility
 - [ ] **Content Rating**: Complete IARC questionnaire → Expected: Everyone
@@ -160,9 +160,9 @@ Complete every item before submitting to the Play Store.
 
 ## Privacy Policy Template
 
-Host at `https://yourdomain.com/mp3extract/privacy` and include:
+Host at `https://yourdomain.com/audiopeel/privacy` and include:
 
-1. **Data Collection**: MP3 Extract does not collect, store, or transmit any personal data.
+1. **Data Collection**: AudioPeel does not collect, store, or transmit any personal data.
 2. **Permissions**: Storage access is used solely to read video files and write converted MP3 files on-device.
 3. **Third-Party Services**:
    - Google AdMob: Serves ads; see [Google's Privacy Policy](https://policies.google.com/privacy).

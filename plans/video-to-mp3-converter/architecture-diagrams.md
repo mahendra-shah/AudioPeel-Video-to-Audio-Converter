@@ -1,6 +1,6 @@
 # Visual Architecture & Flow Diagrams
 
-**Project:** MP3 Extract - Video to MP3 Converter  
+**Project:** AudioPeel - Video to MP3 Converter  
 **Purpose:** Visual reference for understanding app structure and flows
 
 ---

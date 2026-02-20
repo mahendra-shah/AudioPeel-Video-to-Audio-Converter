@@ -3,11 +3,11 @@
 # NEVER commit the real key.properties — it is already in .gitignore.
 #
 # To generate a keystore:
-#   keytool -genkey -v -keystore ~/mp3extract-release.jks \
+#   keytool -genkey -v -keystore ~/audiopeel-release.jks \
 #     -keyalg RSA -keysize 2048 -validity 10000 \
-#     -alias mp3extract
+#     -alias audiopeel
 #
 storePassword=YOUR_STORE_PASSWORD
 keyPassword=YOUR_KEY_PASSWORD
-keyAlias=mp3extract
-storeFile=/path/to/mp3extract-release.jks
+keyAlias=audiopeel
+storeFile=/path/to/audiopeel-release.jks

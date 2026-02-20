@@ -1,14 +1,15 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../constants/app_colors.dart';
+import '../widgets/common/audio_icon.dart';
 import '../constants/app_constants.dart';
 import '../constants/app_strings.dart';
 import '../models/audio_quality.dart';
 import '../providers/ad_provider.dart';
 import '../providers/settings_provider.dart';
-import '../services/iap_service.dart';
 import '../services/storage_service.dart';
 
 /// Settings screen with grouped sections matching the design:
@@ -57,12 +58,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           vertical: AppConstants.spacingSmall,
         ),
         children: [
-          // ── Remove Ads CTA ────────────────────────────────────────
-          if (!settings.adsRemoved) ...[
-            _RemoveAdsBanner(onTap: () => _onRemoveAds(settings)),
-            const SizedBox(height: AppConstants.spacingSection),
-          ],
-
           // ── Appearance & Behavior ─────────────────────────────────
           const _SectionHeader(title: AppStrings.appearanceAndBehavior),
           const SizedBox(height: AppConstants.spacingSmall),
@@ -77,7 +72,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const _SectionHeader(title: AppStrings.audioSettings),
           const SizedBox(height: AppConstants.spacingSmall),
           _NavigationTile(
-            icon: Icons.music_note_rounded,
+            iconWidget: const AudioIcon(size: 20, color: AppColors.primary),
             iconColor: AppColors.primary,
             title: AppStrings.audioQualityLabel,
             subtitle: AudioQuality.fromKbps(settings.defaultQualityKbps).label,
@@ -156,6 +151,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: AppStrings.version,
             trailing: AppStrings.versionValue,
           ),
+          const SizedBox(height: AppConstants.spacingSmall),
+          _NavigationTile(
+            icon: Icons.policy_rounded,
+            iconColor: AppColors.primary,
+            title: AppStrings.privacyPolicy,
+            subtitle: 'Learn how we protect your data',
+            onTap: () async {
+              // TODO: Replace with your actual privacy policy URL
+              // Example: https://yourdomain.com/privacy or GitHub Pages URL
+              final uri = Uri.parse('https://github.com/mahendra-shah/audiopeel/blob/main/docs/PRIVACY_POLICY.md');
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              } else {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Could not open privacy policy'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              }
+            },
+          ),
 
           // ── Footer ────────────────────────────────────────────────
           const SizedBox(height: AppConstants.spacingSection + 8),
@@ -232,71 +251,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text('Output path set to: $selectedDir')));
-  }
-
-  // ─── Remove Ads (IAP) ──────────────────────────────────────────────
-
-  Future<void> _onRemoveAds(SettingsProvider settings) async {
-    final iap = context.read<IapService>();
-    await iap.purchaseRemoveAds();
-
-    // Listen for purchase completion.
-    iap.addListener(() {
-      if (!mounted) return;
-      if (iap.isPurchased) {
-        settings.markAdsRemoved();
-        context.read<AdProvider>().markAdsRemoved();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text(AppStrings.adsRemoved)));
-      } else if (iap.error != null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(iap.error!)));
-      }
-    });
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// Reusable private widgets
-// ═══════════════════════════════════════════════════════════════════════
-
-// ─── Remove Ads Banner ────────────────────────────────────────────────
-
-/// Prominent amber "Remove Ads" CTA at the top of the screen.
-class _RemoveAdsBanner extends StatelessWidget {
-  const _RemoveAdsBanner({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.warning,
-      borderRadius: BorderRadius.circular(AppConstants.buttonRadius),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppConstants.buttonRadius),
-        child: SizedBox(
-          height: AppConstants.buttonHeight,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.star_rounded, color: Colors.black87),
-              const SizedBox(width: AppConstants.spacingSmall),
-              Text(
-                AppStrings.removeAds,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 
@@ -380,15 +334,18 @@ class _ToggleTile extends StatelessWidget {
 /// Card-shaped row with an icon, title, optional subtitle, and a chevron.
 class _NavigationTile extends StatelessWidget {
   const _NavigationTile({
-    required this.icon,
+    this.icon,
+    this.iconWidget,
     required this.iconColor,
     required this.title,
     this.subtitle,
     this.subtitleExtra,
     required this.onTap,
-  });
+  }) : assert(icon != null || iconWidget != null,
+            'Either icon or iconWidget must be provided');
 
-  final IconData icon;
+  final IconData? icon;
+  final Widget? iconWidget;
   final Color iconColor;
   final String title;
   final String? subtitle;
@@ -403,7 +360,7 @@ class _NavigationTile extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: [
-          _CircleIcon(icon: icon, color: iconColor),
+          _CircleIcon(icon: icon, iconWidget: iconWidget, color: iconColor),
           const SizedBox(width: AppConstants.spacingSmall + 4),
           Expanded(
             child: Column(
@@ -587,9 +544,12 @@ class _TileCard extends StatelessWidget {
 /// Small coloured circle containing an icon, used as the leading
 /// element in every settings tile.
 class _CircleIcon extends StatelessWidget {
-  const _CircleIcon({required this.icon, required this.color});
+  const _CircleIcon({this.icon, this.iconWidget, required this.color})
+      : assert(icon != null || iconWidget != null,
+            'Either icon or iconWidget must be provided');
 
-  final IconData icon;
+  final IconData? icon;
+  final Widget? iconWidget;
   final Color color;
 
   @override
@@ -601,7 +561,7 @@ class _CircleIcon extends StatelessWidget {
         color: color.withValues(alpha: 0.15),
         shape: BoxShape.circle,
       ),
-      child: Icon(icon, color: color, size: 20),
+      child: iconWidget ?? Icon(icon, color: color, size: 20),
     );
   }
 }

@@ -3,6 +3,8 @@ import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../widgets/common/audio_icon.dart';
+
 import '../constants/app_colors.dart';
 import '../constants/app_constants.dart';
 import '../constants/app_strings.dart';
@@ -168,7 +170,7 @@ class _AudioPreviewCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Music note icon in a rounded-square container.
+          // Branded audio icon in a rounded-square container.
           Container(
             width: 56,
             height: 56,
@@ -176,10 +178,9 @@ class _AudioPreviewCard extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(
-              Icons.music_note_rounded,
-              color: AppColors.primary,
+            child: const AudioIcon(
               size: 28,
+              color: AppColors.primary,
             ),
           ),
           const SizedBox(width: AppConstants.spacingSmall + 4),
@@ -268,7 +269,7 @@ class _FileInfoCard extends StatelessWidget {
       child: Column(
         children: [
           _FileInfoRow(
-            icon: Icons.music_note_rounded,
+            iconWidget: const AudioIcon(size: 18, color: AppColors.primary),
             label: AppStrings.fileNameLabel,
             value: fileName,
           ),
@@ -300,12 +301,15 @@ class _FileInfoCard extends StatelessWidget {
 /// label, and bold value.
 class _FileInfoRow extends StatelessWidget {
   const _FileInfoRow({
-    required this.icon,
+    this.icon,
+    this.iconWidget,
     required this.label,
     required this.value,
-  });
+  }) : assert(icon != null || iconWidget != null,
+            'Either icon or iconWidget must be provided');
 
-  final IconData icon;
+  final IconData? icon;
+  final Widget? iconWidget;
   final String label;
   final String value;
 
@@ -328,7 +332,7 @@ class _FileInfoRow extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: AppColors.primary, size: 18),
+            child: iconWidget ?? Icon(icon, color: AppColors.primary, size: 18),
           ),
           const SizedBox(width: AppConstants.spacingSmall + 4),
           Expanded(

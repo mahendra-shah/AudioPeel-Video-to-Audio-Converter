@@ -3,11 +3,11 @@
 /// Never hard-code UI text — reference these constants instead.
 abstract final class AppStrings {
   // ─── App ────────────────────────────────────────────────────────────
-  static const String appName = 'Voca: Video to Audio Converter';
+  static const String appName = 'AudioPeel: Video to Mp3';
   static const String appTagline = 'Video to Audio Converter';
 
   // ─── Home Screen ────────────────────────────────────────────────────
-  static const String homeTitle = 'Voca';
+  static const String homeTitle = 'AudioPeel';
   static const String homeSubtitle =
       'Convert videos to high-quality MP3 instantly';
   static const String selectVideo = 'SELECT VIDEO';
@@ -125,18 +125,13 @@ abstract final class AppStrings {
   static const String clearCache = 'Clear Cache';
   static const String cacheCleared = 'Cache cleared';
   static const String about = 'ABOUT';
-  static const String appNameAbout = 'Voca';
+  static const String appNameAbout = 'AudioPeel';
   static const String version = 'Version';
   static const String versionValue = 'v1.0.0 (Build 1)';
-  static const String copyright = 'Voca © 2026';
+  static const String copyright = 'AudioPeel © 2026';
   static const String rateApp = 'Rate App';
   static const String shareApp = 'Share App';
   static const String privacyPolicy = 'Privacy Policy';
-  static const String removeAds = 'Remove Ads';
-  static const String removeAdsPrice = '\$1.99';
-  static const String removeAdsDescription =
-      'One-time purchase to remove all advertisements';
-  static const String adsRemoved = 'Ads Removed';
   static const String selectQuality = 'Select Quality';
 
   // ─── Splash Screen ──────────────────────────────────────────────────

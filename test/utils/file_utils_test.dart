@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mp3_extract/utils/file_utils.dart';
+import 'package:audiopeel/utils/file_utils.dart';
 
 void main() {
   group('FileUtils.isSupportedVideo', () {

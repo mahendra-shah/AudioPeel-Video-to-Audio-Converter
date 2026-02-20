@@ -7,11 +7,6 @@ abstract final class AppConstants {
   /// Number of conversions between interstitial ads.
   static const int interstitialAdFrequency = 1;
 
-  // ─── IAP ────────────────────────────────────────────────────────────
-
-  /// Product ID for the "Remove Ads" non-consumable purchase.
-  static const String removeAdsProductId = 'remove_ads';
-
   // ─── Audio Quality Defaults ─────────────────────────────────────────
 
   /// Default audio bitrate in kbps.
@@ -29,7 +24,7 @@ abstract final class AppConstants {
   static const int maxFileNameLength = 50;
 
   /// Default output sub-directory inside app's external storage.
-  static const String outputDirectoryName = 'MP3Extract';
+  static const String outputDirectoryName = 'AudioPeel';
 
   /// Supported video extensions for file picker.
   static const List<String> supportedVideoExtensions = [
@@ -96,7 +91,7 @@ abstract final class AppConstants {
   // ─── Database ───────────────────────────────────────────────────────
 
   /// SQLite database file name.
-  static const String databaseName = 'mp3_extract.db';
+  static const String databaseName = 'audiopeel.db';
 
   /// Current database version for migrations.
   static const int databaseVersion = 1;
@@ -108,9 +103,6 @@ abstract final class AppConstants {
 
   /// SharedPreferences key for default quality (kbps integer).
   static const String prefDefaultQuality = 'default_quality';
-
-  /// SharedPreferences key for ads-removed flag.
-  static const String prefAdsRemoved = 'ads_removed';
 
   /// SharedPreferences key for total conversions counter.
   static const String prefTotalConversions = 'total_conversions';

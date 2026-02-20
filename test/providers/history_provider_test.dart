@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:mp3_extract/models/audio_file.dart';
-import 'package:mp3_extract/models/audio_quality.dart';
-import 'package:mp3_extract/providers/history_provider.dart';
-import 'package:mp3_extract/services/database_service.dart';
+import 'package:audiopeel/models/audio_file.dart';
+import 'package:audiopeel/models/audio_quality.dart';
+import 'package:audiopeel/providers/history_provider.dart';
+import 'package:audiopeel/services/database_service.dart';
 
 // ─── Mock ─────────────────────────────────────────────────────────────
 

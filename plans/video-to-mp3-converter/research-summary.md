@@ -1,7 +1,7 @@
 # Video to MP3 Converter - Research Summary
 
 **Date:** 6 February 2026  
-**Project:** MP3 Extract (Video to MP3 Converter)  
+**Project:** AudioPeel (Video to MP3 Converter)  
 **Platform:** Flutter (Android-first)
 
 ---
@@ -409,8 +409,8 @@ if (Platform.isAndroid && androidVersion < 10) {
 ## 9. APP STORE OPTIMIZATION (ASO)
 
 ### App Name
-**Primary:** "MP3 Extract - Video to MP3 Converter"  
-**Short:** "MP3 Extract"
+**Primary:** "AudioPeel - Video to MP3 Converter"  
+**Short:** "AudioPeel"
 
 ### Keywords
 - video to mp3

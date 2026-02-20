@@ -15,13 +15,14 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.mp3extract.mp3_extract"
+    namespace = "com.mcore.audiopeel"
     compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -29,7 +30,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.mp3extract.app"
+        applicationId = "com.mcore.audiopeel"
         minSdk = 26
         targetSdk = 34
         versionCode = flutter.versionCode
@@ -67,4 +68,8 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }

@@ -1,6 +1,6 @@
 # Video to MP3 Converter - Project Documentation Index
 
-**Project Name:** MP3 Extract  
+**Project Name:** AudioPeel  
 **Type:** Flutter Mobile App (Android-first)  
 **Status:** Planning Complete ✅  
 **Last Updated:** 6 February 2026

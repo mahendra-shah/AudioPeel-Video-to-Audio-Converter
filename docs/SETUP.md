@@ -26,7 +26,7 @@ flutter doctor
 
 ```bash
 git clone <repo-url>
-cd mp3_extract
+cd audiopeel
 ```
 
 ### 3. Install Dependencies
@@ -89,15 +89,15 @@ For testing, use a [license test account](https://developer.android.com/google/p
 
 ```bash
 # Generate a keystore
-keytool -genkey -v -keystore ~/mp3extract-release.jks \
+keytool -genkey -v -keystore ~/audiopeel-release.jks \
   -keyalg RSA -keysize 2048 -validity 10000 \
-  -alias mp3extract
+  -alias audiopeel
 
 # Create android/key.properties (gitignored)
 echo "storePassword=<password>
 keyPassword=<password>
-keyAlias=mp3extract
-storeFile=/Users/<you>/mp3extract-release.jks" > android/key.properties
+keyAlias=audiopeel
+storeFile=/Users/<you>/audiopeel-release.jks" > android/key.properties
 ```
 
 ## Troubleshooting

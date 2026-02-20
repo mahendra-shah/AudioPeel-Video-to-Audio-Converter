@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mp3_extract/utils/validation_utils.dart';
+import 'package:audiopeel/utils/validation_utils.dart';
 
 void main() {
   group('ValidationUtils.validateFileName', () {

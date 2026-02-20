@@ -1,4 +1,4 @@
-# MP3 Extract - Video to MP3 Converter App
+# AudioPeel - Video to MP3 Converter App
 
 **Branch:** `feature/video-to-mp3-converter-mvp`  
 **Description:** Production-ready video to MP3 converter with offline conversion, quality selection, history tracking, and monetization.
@@ -209,7 +209,7 @@ All widgets must:
 
 **What:**  
 Build Home Screen UI per design specs:
-- **Top Bar (64dp):** "MP3 Extract" title (left), Settings icon (right)
+- **Top Bar (64dp):** "AudioPeel" title (left), Settings icon (right)
 - **Hero Section (240dp):** Large circular button (200dp) with gradient (#3B82F6 to #2563EB), video icon + "SELECT VIDEO" text, subtitle below
 - **Recent Conversions Section:** "Recent Conversions" header with "See All" link, shows 3-4 latest conversions using `ConversionCard` widgets, fade effect on last item if more exist
 - **Empty State:** If no conversions, show `EmptyState` widget with "No conversions yet" message
@@ -484,7 +484,7 @@ Build Settings Screen per design:
 
 **Splash Screen (1 second max):**
 - App logo (120x120dp, rounded 24dp, gradient blue)
-- App name: "MP3 Extract" (Poppins SemiBold 24sp)
+- App name: "AudioPeel" (Poppins SemiBold 24sp)
 - Tagline: "Extract Audio in Seconds" (Inter 14sp, secondary color)
 - Bottom badges: "Offline • Free • No Account" (Inter 12sp)
 - Dark background (#0F172A) with subtle gradient
@@ -782,7 +782,7 @@ Complete testing suite and documentation:
 
 **README.md:**
 ```markdown
-# MP3 Extract - Video to MP3 Converter
+# AudioPeel - Video to MP3 Converter
 
 Fast, private, offline video to MP3 converter for Android.
 
@@ -845,7 +845,7 @@ android {
     compileSdkVersion 34
     
     defaultConfig {
-        applicationId "com.mp3extract.app" // CHANGE THIS
+        applicationId "com.audiopeel.app" // CHANGE THIS
         minSdkVersion 26
         targetSdkVersion 34
         versionCode 1
@@ -888,7 +888,7 @@ android {
 - Use `flutter_native_splash` package
 - Background: #0F172A (dark)
 - Logo: 200x200dp centered
-- Text: "MP3 Extract" below
+- Text: "AudioPeel" below
 
 **Version Management:**
 ```yaml

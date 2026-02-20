@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mp3_extract/constants/app_constants.dart';
-import 'package:mp3_extract/providers/settings_provider.dart';
+import 'package:audiopeel/constants/app_constants.dart';
+import 'package:audiopeel/providers/settings_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

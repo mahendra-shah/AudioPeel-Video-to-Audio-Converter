@@ -1,14 +1,16 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
 
 import 'app.dart';
+import 'config/env.dart';
 import 'providers/ad_provider.dart';
 import 'providers/conversion_provider.dart';
 import 'providers/history_provider.dart';
 import 'providers/settings_provider.dart';
-import 'services/iap_service.dart';
+import 'services/notification_service.dart';
 import 'services/storage_service.dart';
 import 'utils/logger.dart';
 
@@ -17,6 +19,17 @@ Future<void> main() async {
 
   // Lock orientation to portrait for consistent layout.
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+  // Safety check: Warn if using test ads in release mode
+  if (kReleaseMode && !Env.isProduction) {
+    Logger.error(
+      '⚠️ CRITICAL: RELEASE BUILD with TEST AD IDs! '
+      'Build with: flutter build appbundle --release --dart-define=PRODUCTION=true '
+      'Submitting to Play Store with test ad IDs will result in REJECTION or account SUSPENSION!',
+      tag: 'Main',
+    );
+    // In a real production scenario, you might want to show an in-app banner or prevent app launch
+  }
 
   // Initialise the Mobile Ads SDK — non-fatal if it fails.
   try {
@@ -37,17 +50,18 @@ Future<void> main() async {
   // Initialise the storage service with any persisted custom output path.
   await StorageService().init();
 
-  // Initialise IAP service — non-fatal if it fails.
-  final iapService = IapService();
+  // Initialise notification service for conversion progress notifications.
   try {
-    await iapService.initialise();
+    await NotificationService.instance.initialize();
+    // Request notification permission at startup for smoother UX
+    await NotificationService.instance.requestPermission();
   } on Exception catch (e, st) {
-    Logger.error('IAP init failed', error: e, stackTrace: st, tag: 'Main');
-  }
-
-  // Sync IAP state → settings if already purchased.
-  if (iapService.isPurchased && !settingsProvider.adsRemoved) {
-    await settingsProvider.markAdsRemoved();
+    Logger.error(
+      'NotificationService init failed',
+      error: e,
+      stackTrace: st,
+      tag: 'Main',
+    );
   }
 
   runApp(
@@ -56,17 +70,15 @@ Future<void> main() async {
         ChangeNotifierProvider.value(value: settingsProvider),
         ChangeNotifierProvider(create: (_) => ConversionProvider()),
         ChangeNotifierProvider(create: (_) => HistoryProvider()),
-        ChangeNotifierProvider.value(value: iapService),
         ChangeNotifierProvider(
           create: (_) {
-            final adProvider = AdProvider()
-              ..syncAdsRemoved(settingsProvider.adsRemoved);
+            final adProvider = AdProvider();
             adProvider.loadInterstitial();
             return adProvider;
           },
         ),
       ],
-      child: const Mp3ExtractApp(),
+      child: const AudioPeelApp(),
     ),
   );
 }

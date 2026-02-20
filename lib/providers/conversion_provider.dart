@@ -8,6 +8,7 @@ import '../models/audio_quality.dart';
 import '../models/conversion_task.dart';
 import '../services/database_service.dart';
 import '../services/ffmpeg_service.dart';
+import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 import '../utils/file_utils.dart';
 import '../utils/logger.dart';
@@ -20,13 +21,16 @@ class ConversionProvider extends ChangeNotifier {
     FFmpegService? ffmpegService,
     StorageService? storageService,
     DatabaseService? databaseService,
+    NotificationService? notificationService,
   }) : _ffmpegService = ffmpegService ?? FFmpegService(),
        _storageService = storageService ?? StorageService(),
-       _databaseService = databaseService ?? DatabaseService.instance;
+       _databaseService = databaseService ?? DatabaseService.instance,
+       _notificationService = notificationService ?? NotificationService.instance;
 
   final FFmpegService _ffmpegService;
   final StorageService _storageService;
   final DatabaseService _databaseService;
+  final NotificationService _notificationService;
 
   // ─── State ──────────────────────────────────────────────────────────
 
@@ -36,6 +40,7 @@ class ConversionProvider extends ChangeNotifier {
   AudioQuality _quality = AudioQuality.medium192;
   int _videoDurationMs = 0;
   int _videoSizeBytes = 0;
+  DateTime? _conversionStartTime;
 
   // ─── Getters ────────────────────────────────────────────────────────
 
@@ -172,7 +177,18 @@ class ConversionProvider extends ChangeNotifier {
       videoDurationMs: _videoDurationMs,
       status: ConversionStatus.converting,
     );
+    _conversionStartTime = DateTime.now();
     notifyListeners();
+
+    // Request notification permission (non-blocking)
+    await _notificationService.requestPermission();
+
+    // Show initial progress notification
+    await _notificationService.showProgressNotification(
+      fileName: _task!.inputVideoName,
+      progress: 0.0,
+      estimatedTimeRemaining: 'Calculating...',
+    );
 
     try {
       final result = await _ffmpegService.convertVideoToMp3(
@@ -212,6 +228,11 @@ class ConversionProvider extends ChangeNotifier {
           status: ConversionStatus.completed,
           progress: 1.0,
         );
+
+        // Show completion notification
+        await _notificationService.showCompletionNotification(
+          fileName: _task!.outputAudioName,
+        );
       } else {
         // Clean up partial output file.
         await _storageService.deleteFile(outputPath);
@@ -222,6 +243,17 @@ class ConversionProvider extends ChangeNotifier {
               : ConversionStatus.failed,
           errorMessage: result.errorMessage,
         );
+
+        // Show error notification (unless cancelled)
+        if (_task!.status == ConversionStatus.failed) {
+          await _notificationService.showErrorNotification(
+            fileName: _task!.inputVideoName,
+            errorMessage: result.errorMessage,
+          );
+        } else {
+          // Cancelled - just remove progress notification
+          await _notificationService.cancelProgressNotification();
+        }
       }
     } on Exception catch (e, st) {
       Logger.error(
@@ -235,6 +267,12 @@ class ConversionProvider extends ChangeNotifier {
         status: ConversionStatus.failed,
         errorMessage: 'An unexpected error occurred. Please try again.',
       );
+
+      // Show error notification
+      await _notificationService.showErrorNotification(
+        fileName: _task!.inputVideoName,
+        errorMessage: _task!.errorMessage,
+      );
     }
     notifyListeners();
   }
@@ -242,6 +280,8 @@ class ConversionProvider extends ChangeNotifier {
   /// Cancels the active conversion.
   Future<void> cancelConversion() async {
     await _ffmpegService.cancelConversion();
+    // Cancel notification when user manually cancels
+    await _notificationService.cancelProgressNotification();
   }
 
   /// Resets all state so the user can start a new conversion.
@@ -259,5 +299,41 @@ class ConversionProvider extends ChangeNotifier {
   void _onProgress(double progress) {
     _task = _task?.copyWith(progress: progress);
     notifyListeners();
+
+    // Update notification progress (throttled to avoid too many calls)
+    if (_task != null && progress > 0.0 && progress < 1.0) {
+      final estimatedTime = _calculateEstimatedTime(progress);
+      _notificationService.showProgressNotification(
+        fileName: _task!.inputVideoName,
+        progress: progress,
+        estimatedTimeRemaining: estimatedTime,
+      );
+    }
+  }
+
+  /// Calculates estimated time remaining based on current progress.
+  String _calculateEstimatedTime(double progress) {
+    if (_conversionStartTime == null || progress <= 0.0) {
+      return 'Calculating...';
+    }
+
+    final elapsed = DateTime.now().difference(_conversionStartTime!);
+    final totalEstimated = elapsed.inMilliseconds / progress;
+    final remaining = totalEstimated - elapsed.inMilliseconds;
+
+    if (remaining <= 0) return 'Almost done';
+
+    final remainingSeconds = (remaining / 1000).round();
+
+    if (remainingSeconds < 60) {
+      return '${remainingSeconds}s';
+    } else if (remainingSeconds < 3600) {
+      final minutes = (remainingSeconds / 60).round();
+      return '${minutes}m';
+    } else {
+      final hours = (remainingSeconds / 3600).round();
+      final minutes = ((remainingSeconds % 3600) / 60).round();
+      return '${hours}h ${minutes}m';
+    }
   }
 }

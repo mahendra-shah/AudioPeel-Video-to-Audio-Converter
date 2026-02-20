@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mp3_extract/models/audio_file.dart';
-import 'package:mp3_extract/models/audio_quality.dart';
+import 'package:audiopeel/models/audio_file.dart';
+import 'package:audiopeel/models/audio_quality.dart';
 
 void main() {
   group('AudioFile', () {
@@ -17,7 +17,7 @@ void main() {
         inputVideoName: 'test_video.mp4',
         inputVideoPath: '/storage/videos/test_video.mp4',
         outputAudioName: 'test_video_audio.mp3',
-        outputAudioPath: '/storage/mp3extract/test_video_audio.mp3',
+        outputAudioPath: '/storage/audiopeel/test_video_audio.mp3',
         quality: quality,
         fileSize: 3500000,
         duration: 180,
@@ -37,7 +37,7 @@ void main() {
       expect(map['output_audio_name'], 'test_video_audio.mp3');
       expect(
         map['output_audio_path'],
-        '/storage/mp3extract/test_video_audio.mp3',
+        '/storage/audiopeel/test_video_audio.mp3',
       );
       expect(map['quality'], 192);
       expect(map['file_size'], 3500000);

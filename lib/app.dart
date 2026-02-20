@@ -7,8 +7,8 @@ import 'providers/settings_provider.dart';
 import 'screens/splash_screen.dart';
 
 /// Root widget that configures Material 3 theming and routing.
-class Mp3ExtractApp extends StatelessWidget {
-  const Mp3ExtractApp({super.key});
+class AudioPeelApp extends StatelessWidget {
+  const AudioPeelApp({super.key});
 
   @override
   Widget build(BuildContext context) {

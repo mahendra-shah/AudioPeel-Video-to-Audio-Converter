@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mp3_extract/utils/format_utils.dart';
+import 'package:audiopeel/utils/format_utils.dart';
 
 void main() {
   group('FormatUtils.fileSize', () {

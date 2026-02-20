@@ -7,16 +7,21 @@ import '../../constants/app_constants.dart';
 /// optional CTA button.
 class EmptyState extends StatelessWidget {
   const EmptyState({
-    required this.icon,
+    this.icon,
+    this.iconWidget,
     required this.title,
     required this.subtitle,
     this.actionLabel,
     this.onAction,
     super.key,
-  });
+  }) : assert(icon != null || iconWidget != null,
+            'Either icon or iconWidget must be provided');
 
   /// Large icon displayed at the top.
-  final IconData icon;
+  final IconData? icon;
+
+  /// Custom widget to display instead of icon.
+  final Widget? iconWidget;
 
   /// Heading text.
   final String title;
@@ -42,7 +47,7 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 72, color: AppColors.primary.withValues(alpha: 0.3)),
+            iconWidget ?? Icon(icon, size: 72, color: AppColors.primary.withValues(alpha: 0.3)),
             const SizedBox(height: AppConstants.spacingElement),
             Text(
               title,

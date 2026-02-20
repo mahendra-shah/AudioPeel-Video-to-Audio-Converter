@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <application
-        android:label="Voca: Video to Audio"
+        android:label="AudioPeel: Video to Mp3"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -49,6 +49,8 @@
     <!-- For setting ringtone -->
     <uses-permission android:name="android.permission.WRITE_SETTINGS"
                      tools:ignore="ProtectedPermissions"/>
+    <!-- For conversion progress notifications (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <queries>
         <intent>

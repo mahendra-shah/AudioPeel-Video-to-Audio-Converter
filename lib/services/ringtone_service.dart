@@ -5,7 +5,7 @@ import '../utils/logger.dart';
 /// Service to set an audio file as the device ringtone using a
 /// platform channel.
 class RingtoneService {
-  static const _channel = MethodChannel('com.mp3extract.app/ringtone');
+  static const _channel = MethodChannel('com.mcore.audiopeel/ringtone');
 
   /// Sets the audio file at [filePath] as the device ringtone.
   ///

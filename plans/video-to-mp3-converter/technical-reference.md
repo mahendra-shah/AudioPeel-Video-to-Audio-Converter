@@ -1,6 +1,6 @@
 # Technical Implementation Reference
 
-**Project:** MP3 Extract - Video to MP3 Converter  
+**Project:** AudioPeel - Video to MP3 Converter  
 **Last Updated:** 6 February 2026
 
 ---
@@ -126,7 +126,7 @@ FFmpegKit.executeAsync(
     <application
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:label="MP3 Extract"
+        android:label="AudioPeel"
         android:requestLegacyExternalStorage="true">
         
         <!-- AdMob App ID -->
@@ -166,7 +166,7 @@ FFmpegKit.executeAsync(
 
 ```gradle
 android {
-    namespace 'com.mp3extract.app'
+    namespace 'com.audiopeel.app'
     compileSdkVersion 34
     ndkVersion "25.1.8937393"  // Required for FFmpeg
     
@@ -180,7 +180,7 @@ android {
     }
     
     defaultConfig {
-        applicationId "com.mp3extract.app"
+        applicationId "com.audiopeel.app"
         minSdkVersion 26  // Android 8.0
         targetSdkVersion 34  // Android 14
         versionCode 1

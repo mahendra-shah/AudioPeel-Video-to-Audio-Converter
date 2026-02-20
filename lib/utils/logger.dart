@@ -5,7 +5,7 @@ import 'dart:developer' as dev;
 /// Uses `dart:developer` log so messages appear in the debug console
 /// without triggering the `avoid_print` lint.
 abstract final class Logger {
-  static const String _tag = 'MP3Extract';
+  static const String _tag = 'AudioPeel';
 
   /// Logs a debug-level message.
   static void debug(String message, [String? tag]) {
