@@ -158,8 +158,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: AppStrings.privacyPolicy,
             subtitle: 'Learn how we protect your data',
             onTap: () async {
-              // TODO: Replace with your actual privacy policy URL
-              // Example: https://yourdomain.com/privacy or GitHub Pages URL
               final uri = Uri.parse('https://docs.google.com/document/d/1bPV84siKux-kk8qZqU6hnQC8VQTlyjvDHWIjIstpDxI/edit?usp=sharing');
               if (await canLaunchUrl(uri)) {
                 await launchUrl(uri, mode: LaunchMode.externalApplication);

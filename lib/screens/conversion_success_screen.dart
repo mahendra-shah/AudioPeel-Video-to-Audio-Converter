@@ -172,13 +172,14 @@ class _AudioPreviewCard extends StatelessWidget {
         children: [
           // Branded audio icon in a rounded-square container.
           Container(
-            width: 56,
-            height: 56,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
+              color: AppColors.primary.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: const AudioIcon(
+            child: const Icon(
+              Icons.audiotrack_rounded,
               size: 28,
               color: AppColors.primary,
             ),
