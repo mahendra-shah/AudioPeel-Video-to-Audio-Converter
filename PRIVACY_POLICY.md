@@ -15,8 +15,18 @@ AudioPeel ("we," "our," or "us") is a video-to-audio converter application for A
 - **Storage:** We do NOT upload, store, or transmit your media files to any external servers.
 
 ### 2. Device Permissions
-We request the following permissions:
-- **Storage Access (READ_MEDIA_VIDEO, READ_MEDIA_AUDIO):** To read video files you select and save converted audio files.
+We request the following permissions based on your Android version:
+
+**Android 13+ (Granular Media Permissions):**
+- **READ_MEDIA_VIDEO:** To read video files you select for conversion. This is our app's core functionality.
+- **READ_MEDIA_AUDIO:** To save converted audio files to your device.
+- **READ_MEDIA_IMAGES:** Declared in the app manifest but not intentionally used by our app. This permission may be requested by underlying media libraries.
+
+**Android 9-12 (Legacy Storage):**
+- **READ_EXTERNAL_STORAGE:** To access video files you select (replaced by granular permissions in Android 13+).
+- **WRITE_EXTERNAL_STORAGE:** To save converted audio files (not required on Android 10+).
+
+**All Android Versions:**
 - **Notification Permission (POST_NOTIFICATIONS):** To show conversion progress notifications.
 - **Internet Access:** Required for displaying advertisements.
 
