@@ -91,7 +91,7 @@ We may update this policy occasionally. Changes will be posted here with a new "
 
 If you have questions or concerns about this Privacy Policy:
 
-**Email:** mahendrarshah@gmail.com  
+**Email:** dev.mcore@gmail.com  
 **App Developer:** Mahendra Shah  
 **Organization:** MCore Studios  
 
