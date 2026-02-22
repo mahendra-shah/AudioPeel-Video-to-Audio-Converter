@@ -158,7 +158,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: AppStrings.privacyPolicy,
             subtitle: 'Learn how we protect your data',
             onTap: () async {
-              final uri = Uri.parse('https://docs.google.com/document/d/1bPV84siKux-kk8qZqU6hnQC8VQTlyjvDHWIjIstpDxI/edit?usp=sharing');
+              final uri = Uri.parse('https://mahendra-shah.github.io/AudioPeel-Video-to-Audio-Converter/PRIVACY_POLICY');
               if (await canLaunchUrl(uri)) {
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
               } else {

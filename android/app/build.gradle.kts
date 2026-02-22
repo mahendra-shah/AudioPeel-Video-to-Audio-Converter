@@ -16,8 +16,8 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.mcore.audiopeel"
-    compileSdk = 36
-    ndkVersion = "27.0.12077973"
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -31,11 +31,16 @@ android {
 
     defaultConfig {
         applicationId = "com.mcore.audiopeel"
-        minSdk = 26
-        targetSdk = 34
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
+        
+        ndk {
+            // Strip debug symbols from native libraries to reduce size
+            debugSymbolLevel = "SYMBOL_TABLE"
+        }
     }
 
     signingConfigs {
@@ -51,12 +56,14 @@ android {
 
     buildTypes {
         release {
-            // R8 code minification is disabled because it strips code
-            // needed by FFmpeg Kit, file_picker, video_thumbnail, and
-            // platform channels — causing the release APK to break.
-            // Resource shrinking still reduces APK size.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // Enable R8 code minification and resource shrinking for size optimization
+            // ProGuard rules protect FFmpeg Kit and other required classes
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {

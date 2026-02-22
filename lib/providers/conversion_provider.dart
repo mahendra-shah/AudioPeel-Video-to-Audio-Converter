@@ -9,6 +9,7 @@ import '../models/conversion_task.dart';
 import '../services/database_service.dart';
 import '../services/ffmpeg_service.dart';
 import '../services/notification_service.dart';
+import '../services/permission_service.dart';
 import '../services/storage_service.dart';
 import '../utils/file_utils.dart';
 import '../utils/logger.dart';
@@ -22,15 +23,18 @@ class ConversionProvider extends ChangeNotifier {
     StorageService? storageService,
     DatabaseService? databaseService,
     NotificationService? notificationService,
+    PermissionService? permissionService,
   }) : _ffmpegService = ffmpegService ?? FFmpegService(),
        _storageService = storageService ?? StorageService(),
        _databaseService = databaseService ?? DatabaseService.instance,
-       _notificationService = notificationService ?? NotificationService.instance;
+       _notificationService = notificationService ?? NotificationService.instance,
+       _permissionService = permissionService ?? PermissionService();
 
   final FFmpegService _ffmpegService;
   final StorageService _storageService;
   final DatabaseService _databaseService;
   final NotificationService _notificationService;
+  final PermissionService _permissionService;
 
   // ─── State ──────────────────────────────────────────────────────────
 
@@ -88,10 +92,24 @@ class ConversionProvider extends ChangeNotifier {
   /// yourself once the navigation is complete if needed.
   Future<bool> selectVideo() async {
     try {
+      Logger.info('selectVideo() called', 'ConversionProvider');
+      
+      // TEMPORARY: Skip permission check for debugging
+      // TODO: Re-enable permission check after testing
+      /*
+      final hasPermission = await _permissionService.ensureStoragePermission();
+      if (!hasPermission) {
+        Logger.warning('Storage permission denied', 'ConversionProvider');
+        return false;
+      }
+      */
+
+      Logger.info('Opening file picker...', 'ConversionProvider');
       final result = await FilePicker.platform.pickFiles(
         type: FileType.video,
         allowMultiple: false,
       );
+      Logger.info('FilePicker result: ${result != null}', 'ConversionProvider');
 
       if (result == null || result.files.single.path == null) return false;
 

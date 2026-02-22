@@ -5,6 +5,8 @@
 # ─── FFmpeg Kit ─────────────────────────────────────────────────────
 -keep class com.arthenica.ffmpegkit.** { *; }
 -keep class com.arthenica.smartexception.** { *; }
+-keep class com.antonkarpenko.ffmpegkit.** { *; }
+-keep class N2.** { *; }
 
 # ─── Google Mobile Ads ─────────────────────────────────────────────
 -keep class com.google.android.gms.ads.** { *; }

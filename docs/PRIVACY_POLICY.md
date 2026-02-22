@@ -84,7 +84,7 @@ If you have questions about this Privacy Policy or AudioPeel's privacy practices
 
 **Email:** YOUR_EMAIL@example.com  
 **App:** AudioPeel - Video to Mp3  
-**Developer:** YOUR_DEVELOPER_NAME
+**Developer:** Mahendra Shah
 
 ## Third-Party Privacy Policies
 
