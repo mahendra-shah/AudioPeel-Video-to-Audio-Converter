@@ -20,7 +20,6 @@ We request the following permissions based on your Android version:
 **Android 13+ (Granular Media Permissions):**
 - **READ_MEDIA_VIDEO:** To read video files you select for conversion. This is our app's core functionality.
 - **READ_MEDIA_AUDIO:** To save converted audio files to your device.
-- **READ_MEDIA_IMAGES:** Declared in the app manifest but not intentionally used by our app. This permission may be requested by underlying media libraries.
 
 **Android 9-12 (Legacy Storage):**
 - **READ_EXTERNAL_STORAGE:** To access video files you select (replaced by granular permissions in Android 13+).

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -10,7 +11,10 @@ import '../utils/logger.dart';
 /// Shows a persistent progress notification while converting, updates it
 /// as conversion proceeds, and displays a completion or error notification
 /// when finished. Follows Android 13+ notification permission requirements.
-class NotificationService {
+///
+/// Notifications are only shown when the app is in the background - when the
+/// user is actively using the app, they can see progress on screen.
+class NotificationService with WidgetsBindingObserver {
   NotificationService._();
 
   static final NotificationService instance = NotificationService._();
@@ -19,6 +23,7 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
+  bool _isAppInForeground = true; // Track if app is visible to user
 
   // Notification IDs
   static const int _progressNotificationId = 1001;
@@ -62,6 +67,9 @@ class NotificationService {
         await _createNotificationChannel();
       }
 
+      // Register lifecycle observer to track app foreground/background state
+      WidgetsBinding.instance.addObserver(this);
+
       _initialized = true;
       Logger.info('NotificationService initialized', 'NotificationService');
     } on Exception catch (e, st) {
@@ -92,6 +100,40 @@ class NotificationService {
         ?.createNotificationChannel(channel);
 
     Logger.info('Notification channel created', 'NotificationService');
+  }
+
+  /// Tracks app lifecycle changes to determine when to show notifications.
+  ///
+  /// Notifications are only shown when app is in background (paused/inactive).
+  /// When user returns to app, progress notifications are cancelled since they
+  /// can see progress on screen.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        // App is visible and responding to user input
+        _isAppInForeground = true;
+        // Cancel progress notification when user returns to app
+        _plugin.cancel(_progressNotificationId);
+        Logger.debug('App entered foreground - cancelled progress notification', 'NotificationService');
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+        // App is not visible or transitioning away
+        _isAppInForeground = false;
+        Logger.debug('App entered background', 'NotificationService');
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        // App is detached or hidden
+        _isAppInForeground = false;
+    }
+  }
+
+  /// Cleans up the lifecycle observer.
+  ///
+  /// Should be called when the service is no longer needed (rarely used).
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    Logger.info('NotificationService disposed', 'NotificationService');
   }
 
   /// Requests notification permission on Android 13+ (API 33+).
@@ -164,6 +206,7 @@ class NotificationService {
   /// Shows a progress notification for an active conversion.
   ///
   /// Displays a persistent notification with progress bar and estimated time.
+  /// Only shows when app is in background - user can see progress on screen when in app.
   /// [fileName] is the input video file name.
   /// [progress] is a value from 0.0 to 1.0.
   /// [estimatedTimeRemaining] is optional estimated seconds remaining.
@@ -175,6 +218,15 @@ class NotificationService {
     if (!_initialized) {
       Logger.warning(
         'NotificationService not initialized - skipping progress notification',
+        'NotificationService',
+      );
+      return;
+    }
+
+    // Don't show progress notifications when user is actively using the app
+    if (_isAppInForeground) {
+      Logger.debug(
+        'App in foreground - skipping progress notification',
         'NotificationService',
       );
       return;
@@ -208,6 +260,7 @@ class NotificationService {
         autoCancel: false,
         showWhen: true,
         icon: '@mipmap/ic_launcher',
+        largeIcon: const DrawableResourceAndroidBitmap('notification_large_icon'),
         enableVibration: false,
         playSound: false,
       );
@@ -265,6 +318,7 @@ class NotificationService {
         autoCancel: true,
         showWhen: true,
         icon: '@mipmap/ic_launcher',
+        largeIcon: DrawableResourceAndroidBitmap('notification_large_icon'),
         enableVibration: true,
         playSound: true,
       );
@@ -324,6 +378,7 @@ class NotificationService {
         autoCancel: true,
         showWhen: true,
         icon: '@mipmap/ic_launcher',
+        largeIcon: DrawableResourceAndroidBitmap('notification_large_icon'),
         enableVibration: true,
         playSound: true,
       );
