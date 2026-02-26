@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -111,7 +112,7 @@ class _SuccessHeader extends StatelessWidget {
 
     return Column(
       children: [
-        // Green circle with checkmark.
+        // Green circle with checkmark — bounces in with elastic scale + shimmer.
         Container(
           width: 96,
           height: 96,
@@ -124,19 +125,41 @@ class _SuccessHeader extends StatelessWidget {
             color: AppColors.success,
             size: 48,
           ),
-        ),
+        )
+            .animate()
+            .scale(
+              begin: const Offset(0.0, 0.0),
+              end: const Offset(1.0, 1.0),
+              duration: 650.ms,
+              curve: Curves.elasticOut,
+            )
+            .shimmer(
+              delay: 500.ms,
+              duration: 700.ms,
+              color: AppColors.success.withValues(alpha: 0.45),
+              angle: 0.3,
+            ),
         const SizedBox(height: AppConstants.spacingSection),
         Text(
           AppStrings.conversionComplete,
           style: theme.textTheme.displayLarge,
           textAlign: TextAlign.center,
-        ),
+        )
+            .animate()
+            .fadeIn(delay: 380.ms, duration: 380.ms)
+            .slideY(
+              begin: 0.25,
+              end: 0,
+              delay: 380.ms,
+              duration: 380.ms,
+              curve: Curves.easeOut,
+            ),
         const SizedBox(height: AppConstants.spacingSmall),
         Text(
           AppStrings.fileReady,
           style: theme.textTheme.bodyMedium,
           textAlign: TextAlign.center,
-        ),
+        ).animate().fadeIn(delay: 560.ms, duration: 300.ms),
       ],
     );
   }
@@ -270,7 +293,7 @@ class _FileInfoCard extends StatelessWidget {
       child: Column(
         children: [
           _FileInfoRow(
-            iconWidget: const AudioIcon(size: 18, color: AppColors.primary),
+            iconWidget: const AudioIcon(size: 18, color: AppColors.primary, showContainer: false),
             label: AppStrings.fileNameLabel,
             value: fileName,
           ),

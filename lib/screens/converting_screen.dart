@@ -286,8 +286,7 @@ class _TimeRemainingCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${AppStrings.timeRemaining} $remaining '
-                  '${AppStrings.remaining}',
+                  '$remaining ${AppStrings.remaining}',
                   style: theme.textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -345,8 +344,8 @@ class _CancelButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppConstants.buttonRadius),
           ),
         ),
-        icon: const Text(AppStrings.cancel),
-        label: const Icon(Icons.close_rounded, size: 18),
+        icon: const Icon(Icons.close_rounded, size: 18),
+        label: const Text(AppStrings.cancel),
       ),
     );
   }

@@ -352,7 +352,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: ClipOval(
             child: Image.asset(
-              'android_icon/audiopeel-nobg.png',
+              'assets/icon/audiopeel-nobg.png',
               width: 32,
               height: 32,
               fit: BoxFit.contain,

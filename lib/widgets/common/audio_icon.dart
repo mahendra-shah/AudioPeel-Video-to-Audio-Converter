@@ -87,21 +87,13 @@ class _AudioIconState extends State<AudioIcon>
 
   @override
   Widget build(BuildContext context) {
-    Widget icon = Image.asset(
-      'assets/icon/audio_icon.png',
-      width: widget.size,
-      height: widget.size,
-      fit: BoxFit.contain,
-      color: widget.color,
-      colorBlendMode: widget.color != null ? BlendMode.srcIn : null,
-      errorBuilder: (context, error, stackTrace) {
-        // Fallback to Material Icon if asset fails to load
-        return Icon(
-          Icons.music_note_rounded,
-          size: widget.size,
-          color: widget.color ?? AppColors.primary,
-        );
-      },
+    // Use Material icon directly — the PNG asset (audio_icon.png) has an opaque
+    // background which causes BlendMode.srcIn to render as a solid colour block.
+    // Icons.music_note_rounded is crisp, scales perfectly, and needs no asset.
+    Widget icon = Icon(
+      Icons.music_note_rounded,
+      size: widget.size,
+      color: widget.color ?? AppColors.primary,
     );
 
     // Apply animation if requested

@@ -43,7 +43,7 @@ class NotificationService with WidgetsBindingObserver {
 
     try {
       // Android initialization settings
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const androidSettings = AndroidInitializationSettings('@drawable/ic_notification');
 
       // iOS initialization settings (for future iOS support)
       const iosSettings = DarwinInitializationSettings(
@@ -259,8 +259,7 @@ class NotificationService with WidgetsBindingObserver {
         ongoing: true, // Cannot be dismissed while converting
         autoCancel: false,
         showWhen: true,
-        icon: '@mipmap/ic_launcher',
-        largeIcon: const DrawableResourceAndroidBitmap('notification_large_icon'),
+        icon: '@drawable/ic_notification',
         enableVibration: false,
         playSound: false,
       );
@@ -305,6 +304,16 @@ class NotificationService with WidgetsBindingObserver {
       final hasPermission = await this.hasPermission();
       if (!hasPermission) return;
 
+      // If user is still in the app, the success screen is shown on-screen —
+      // no notification needed.
+      if (_isAppInForeground) {
+        Logger.debug(
+          'App in foreground - skipping completion notification',
+          'NotificationService',
+        );
+        return;
+      }
+
       // Cancel progress notification first
       await _plugin.cancel(_progressNotificationId);
 
@@ -317,8 +326,7 @@ class NotificationService with WidgetsBindingObserver {
         ongoing: false,
         autoCancel: true,
         showWhen: true,
-        icon: '@mipmap/ic_launcher',
-        largeIcon: DrawableResourceAndroidBitmap('notification_large_icon'),
+        icon: '@drawable/ic_notification',
         enableVibration: true,
         playSound: true,
       );
@@ -365,6 +373,16 @@ class NotificationService with WidgetsBindingObserver {
       final hasPermission = await this.hasPermission();
       if (!hasPermission) return;
 
+      // If user is still in the app, the error screen is shown on-screen —
+      // no notification needed.
+      if (_isAppInForeground) {
+        Logger.debug(
+          'App in foreground - skipping error notification',
+          'NotificationService',
+        );
+        return;
+      }
+
       // Cancel progress notification first
       await _plugin.cancel(_progressNotificationId);
 
@@ -377,8 +395,7 @@ class NotificationService with WidgetsBindingObserver {
         ongoing: false,
         autoCancel: true,
         showWhen: true,
-        icon: '@mipmap/ic_launcher',
-        largeIcon: DrawableResourceAndroidBitmap('notification_large_icon'),
+        icon: '@drawable/ic_notification',
         enableVibration: true,
         playSound: true,
       );
