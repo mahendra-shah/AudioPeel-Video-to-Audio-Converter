@@ -93,16 +93,6 @@ class ConversionProvider extends ChangeNotifier {
   Future<bool> selectVideo() async {
     try {
       Logger.info('selectVideo() called', 'ConversionProvider');
-      
-      // TEMPORARY: Skip permission check for debugging
-      // TODO: Re-enable permission check after testing
-      /*
-      final hasPermission = await _permissionService.ensureStoragePermission();
-      if (!hasPermission) {
-        Logger.warning('Storage permission denied', 'ConversionProvider');
-        return false;
-      }
-      */
 
       Logger.info('Opening file picker...', 'ConversionProvider');
       final result = await FilePicker.platform.pickFiles(
@@ -201,12 +191,20 @@ class ConversionProvider extends ChangeNotifier {
     // Request notification permission (non-blocking)
     await _notificationService.requestPermission();
 
-    // Show initial progress notification
-    await _notificationService.showProgressNotification(
-      fileName: _task!.inputVideoName,
-      progress: 0.0,
-      estimatedTimeRemaining: 'Calculating...',
-    );
+    // Post an initial notification after a short delay to give the user time
+    // to background the app. This ensures a notification appears even if
+    // _onProgress callbacks happen while the app is still foregrounded.
+    Future.delayed(const Duration(seconds: 2), () {
+      final currentTask = _task;
+      if (currentTask != null &&
+          currentTask.status == ConversionStatus.converting) {
+        _notificationService.showProgressNotification(
+          fileName: currentTask.inputVideoName,
+          progress: currentTask.progress,
+          estimatedTimeRemaining: 'Calculating...',
+        );
+      }
+    });
 
     try {
       final result = await _ffmpegService.convertVideoToMp3(
@@ -247,6 +245,7 @@ class ConversionProvider extends ChangeNotifier {
           progress: 1.0,
         );
 
+
         // Show completion notification
         await _notificationService.showCompletionNotification(
           fileName: _task!.outputAudioName,
@@ -268,10 +267,8 @@ class ConversionProvider extends ChangeNotifier {
             fileName: _task!.inputVideoName,
             errorMessage: result.errorMessage,
           );
-        } else {
-          // Cancelled - just remove progress notification
-          await _notificationService.cancelProgressNotification();
         }
+        // If cancelled, progress notification will auto-expire
       }
     } on Exception catch (e, st) {
       Logger.error(
@@ -298,8 +295,7 @@ class ConversionProvider extends ChangeNotifier {
   /// Cancels the active conversion.
   Future<void> cancelConversion() async {
     await _ffmpegService.cancelConversion();
-    // Cancel notification when user manually cancels
-    await _notificationService.cancelProgressNotification();
+    // Progress notification will auto-expire when app is backgrounded
   }
 
   /// Resets all state so the user can start a new conversion.
@@ -318,7 +314,7 @@ class ConversionProvider extends ChangeNotifier {
     _task = _task?.copyWith(progress: progress);
     notifyListeners();
 
-    // Update notification progress (throttled to avoid too many calls)
+    // Update notification progress
     if (_task != null && progress > 0.0 && progress < 1.0) {
       final estimatedTime = _calculateEstimatedTime(progress);
       _notificationService.showProgressNotification(

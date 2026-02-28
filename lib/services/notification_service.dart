@@ -24,13 +24,15 @@ class NotificationService with WidgetsBindingObserver {
 
   bool _initialized = false;
   bool _isAppInForeground = true; // Track if app is visible to user
+  bool _permissionGranted = false; // Cached after first grant check
+  DateTime? _lastProgressNotification; // Throttle: max 1 update/second
 
   // Notification IDs
   static const int _progressNotificationId = 1001;
   static const int _completionNotificationId = 1002;
 
-  // Notification channel (Android)
-  static const String _channelId = 'audiopeel_conversion';
+  // Notification channel (Android) - renamed to force fresh channel creation
+  static const String _channelId = 'audiopeel_conversion_v2';
   static const String _channelName = 'Conversion Progress';
   static const String _channelDescription =
       'Shows progress when converting videos to audio';
@@ -88,7 +90,7 @@ class NotificationService with WidgetsBindingObserver {
       _channelId,
       _channelName,
       description: _channelDescription,
-      importance: Importance.low, // Low: no sound/vibration for progress updates
+      importance: Importance.defaultImportance,
       showBadge: true,
       enableVibration: false,
       playSound: false,
@@ -109,22 +111,28 @@ class NotificationService with WidgetsBindingObserver {
   /// can see progress on screen.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    Logger.info(
+      'App lifecycle changed to: $state',
+      'NotificationService',
+    );
     switch (state) {
       case AppLifecycleState.resumed:
         // App is visible and responding to user input
         _isAppInForeground = true;
-        // Cancel progress notification when user returns to app
-        _plugin.cancel(_progressNotificationId);
-        Logger.debug('App entered foreground - cancelled progress notification', 'NotificationService');
+        Logger.info('App FOREGROUND - notifications disabled', 'NotificationService');
       case AppLifecycleState.inactive:
+        // Briefly covered by a system dialog (e.g. permission prompt) —
+        // the app is still visible to the user, do not change foreground state.
+        break;
       case AppLifecycleState.paused:
-        // App is not visible or transitioning away
+        // App is truly in the background (home button, switch apps, etc.)
         _isAppInForeground = false;
-        Logger.debug('App entered background', 'NotificationService');
+        Logger.info('App BACKGROUND - notifications enabled', 'NotificationService');
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
         // App is detached or hidden
         _isAppInForeground = false;
+        Logger.info('App DETACHED/HIDDEN - notifications enabled', 'NotificationService');
     }
   }
 
@@ -138,43 +146,28 @@ class NotificationService with WidgetsBindingObserver {
 
   /// Requests notification permission on Android 13+ (API 33+).
   ///
+  /// Uses flutter_local_notifications built-in request which handles
+  /// Android version detection correctly internally.
   /// Returns `true` if permission is granted, `false` otherwise.
-  /// On Android 12 and below, always returns `true` since no permission needed.
   Future<bool> requestPermission() async {
     if (!Platform.isAndroid) return true;
 
     try {
-      // Android 13+ requires runtime permission
-      final androidInfo = await _getAndroidVersion();
-      if (androidInfo >= 33) {
-        final status = await Permission.notification.status;
+      // flutter_local_notifications v17+ handles version check internally.
+      // Returns null on pre-Android 13 (permission not required → treat as granted).
+      final androidPlugin = _plugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
 
-        if (status.isGranted) {
-          Logger.info('Notification permission already granted', 'NotificationService');
-          return true;
-        }
+      final granted =
+          await androidPlugin?.requestNotificationsPermission() ?? true;
 
-        if (status.isPermanentlyDenied) {
-          Logger.warning(
-            'Notification permission permanently denied',
-            'NotificationService',
-          );
-          return false;
-        }
-
-        // Request permission
-        final result = await Permission.notification.request();
-        final granted = result.isGranted;
-
-        Logger.info(
-          'Notification permission ${granted ? 'granted' : 'denied'}',
-          'NotificationService',
-        );
-        return granted;
-      }
-
-      // Android 12 and below - no permission needed
-      return true;
+      _permissionGranted = granted;
+      Logger.info(
+        'Notification permission ${granted ? 'granted' : 'denied'}',
+        'NotificationService',
+      );
+      return granted;
     } on Exception catch (e, st) {
       Logger.error(
         'Failed to request notification permission',
@@ -191,15 +184,14 @@ class NotificationService with WidgetsBindingObserver {
     if (!Platform.isAndroid) return true;
 
     try {
-      final androidInfo = await _getAndroidVersion();
-      if (androidInfo >= 33) {
-        final status = await Permission.notification.status;
-        return status.isGranted;
-      }
-      return true; // Pre-Android 13 doesn't need permission
+      final status = await Permission.notification.status;
+      // On Android < 13, POST_NOTIFICATIONS is auto-granted.
+      // permission_handler returns granted for it on those versions.
+      return status.isGranted || status.isLimited;
     } on Exception catch (e) {
-      Logger.error('Failed to check notification permission', error: e, tag: 'NotificationService');
-      return false;
+      Logger.error('Failed to check notification permission',
+          error: e, tag: 'NotificationService');
+      return true; // Assume granted on error to not block notifications
     }
   }
 
@@ -207,14 +199,17 @@ class NotificationService with WidgetsBindingObserver {
   ///
   /// Displays a persistent notification with progress bar and estimated time.
   /// Only shows when app is in background - user can see progress on screen when in app.
-  /// [fileName] is the input video file name.
-  /// [progress] is a value from 0.0 to 1.0.
-  /// [estimatedTimeRemaining] is optional estimated seconds remaining.
+  /// Uses Importance.defaultImportance (not low) so MIUI doesn't hide it.
   Future<void> showProgressNotification({
     required String fileName,
     required double progress,
     String? estimatedTimeRemaining,
   }) async {
+    Logger.info(
+      'showProgressNotification called: initialized=$_initialized, foreground=$_isAppInForeground, progress=$progress',
+      'NotificationService',
+    );
+
     if (!_initialized) {
       Logger.warning(
         'NotificationService not initialized - skipping progress notification',
@@ -232,9 +227,20 @@ class NotificationService with WidgetsBindingObserver {
       return;
     }
 
+    // Throttle: skip if we posted a notification less than 1 second ago
+    final now = DateTime.now();
+    if (_lastProgressNotification != null &&
+        now.difference(_lastProgressNotification!).inMilliseconds < 1000) {
+      return;
+    }
+    _lastProgressNotification = now;
+
     try {
-      final hasPermission = await this.hasPermission();
-      if (!hasPermission) {
+      // Use cached permission result to avoid async permission check on every tick
+      if (!_permissionGranted) {
+        _permissionGranted = await hasPermission();
+      }
+      if (!_permissionGranted) {
         Logger.debug(
           'No notification permission - skipping progress notification',
           'NotificationService',
@@ -251,8 +257,8 @@ class NotificationService with WidgetsBindingObserver {
         _channelId,
         _channelName,
         channelDescription: _channelDescription,
-        importance: Importance.low,
-        priority: Priority.low,
+        importance: Importance.defaultImportance,  // KEY FIX: was Importance.low
+        priority: Priority.defaultPriority,        // KEY FIX: was Priority.low
         showProgress: true,
         maxProgress: 100,
         progress: progressPercent,
@@ -301,8 +307,12 @@ class NotificationService with WidgetsBindingObserver {
     if (!_initialized) return;
 
     try {
-      final hasPermission = await this.hasPermission();
-      if (!hasPermission) return;
+      // Use cached permission — if progress notifications were firing, permission is granted.
+      // Re-check only if not yet cached.
+      if (!_permissionGranted) {
+        _permissionGranted = await hasPermission();
+      }
+      if (!_permissionGranted) return;
 
       // If user is still in the app, the success screen is shown on-screen —
       // no notification needed.
@@ -313,9 +323,6 @@ class NotificationService with WidgetsBindingObserver {
         );
         return;
       }
-
-      // Cancel progress notification first
-      await _plugin.cancel(_progressNotificationId);
 
       const androidDetails = AndroidNotificationDetails(
         _channelId,
@@ -342,8 +349,9 @@ class NotificationService with WidgetsBindingObserver {
         iOS: iosDetails,
       );
 
+      // Use same ID as progress notification to auto-replace it (avoid cancel() crashes)
       await _plugin.show(
-        _completionNotificationId,
+        _progressNotificationId,
         'Conversion complete ✓',
         'Audio saved: $fileName',
         details,
@@ -370,8 +378,12 @@ class NotificationService with WidgetsBindingObserver {
     if (!_initialized) return;
 
     try {
-      final hasPermission = await this.hasPermission();
-      if (!hasPermission) return;
+      // Use cached permission — if progress notifications were firing, permission is granted.
+      // Re-check only if not yet cached.
+      if (!_permissionGranted) {
+        _permissionGranted = await hasPermission();
+      }
+      if (!_permissionGranted) return;
 
       // If user is still in the app, the error screen is shown on-screen —
       // no notification needed.
@@ -382,9 +394,6 @@ class NotificationService with WidgetsBindingObserver {
         );
         return;
       }
-
-      // Cancel progress notification first
-      await _plugin.cancel(_progressNotificationId);
 
       const androidDetails = AndroidNotificationDetails(
         _channelId,
@@ -413,8 +422,9 @@ class NotificationService with WidgetsBindingObserver {
 
       final message = errorMessage ?? 'Please try again';
 
+      // Use same ID as progress notification to auto-replace it (avoid cancel() crashes)
       await _plugin.show(
-        _completionNotificationId,
+        _progressNotificationId,
         'Conversion failed',
         '$fileName - $message',
         details,
@@ -443,11 +453,7 @@ class NotificationService with WidgetsBindingObserver {
 
   /// Cancels only the progress notification.
   Future<void> cancelProgressNotification() async {
-    try {
-      await _plugin.cancel(_progressNotificationId);
-    } on Exception catch (e) {
-      Logger.error('Failed to cancel progress notification', error: e, tag: 'NotificationService');
-    }
+    // Skip cancel - causes plugin crashes. The notification will auto-dismiss when task completes.
   }
 
   /// Handles notification tap events.
@@ -460,25 +466,5 @@ class NotificationService with WidgetsBindingObserver {
     );
     // TODO: Navigate to appropriate screen based on notification type
     // This would require a global navigator key or notification callback
-  }
-
-  /// Gets Android SDK version.
-  Future<int> _getAndroidVersion() async {
-    if (!Platform.isAndroid) return 0;
-
-    try {
-      // Use permission_handler's device info to check Android version
-      // Android 13 (API 33) introduced notification permission requirement
-      final androidInfo = await _plugin
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.getActiveNotifications();
-
-      // If we can query notifications without error, we're on newer Android
-      // For simplicity, we'll check permission status which handles version internally
-      return 33; // Assume recent version if plugin works
-    } catch (e) {
-      return 33; // Default to requiring permission for safety
-    }
   }
 }

@@ -5,7 +5,7 @@ abstract final class AppConstants {
   // ─── Ad Configuration ───────────────────────────────────────────────
 
   /// Number of conversions between interstitial ads.
-  static const int interstitialAdFrequency = 1;
+  static const int interstitialAdFrequency = 2;
 
   // ─── Audio Quality Defaults ─────────────────────────────────────────
 

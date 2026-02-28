@@ -127,7 +127,7 @@ abstract final class AppStrings {
   static const String about = 'ABOUT';
   static const String appNameAbout = 'AudioPeel';
   static const String version = 'Version';
-  static const String versionValue = 'v1.0.0 (Build 1)';
+  static const String versionValue = 'v1.1.0 (Build 2)';
   static const String copyright = 'AudioPeel © 2026';
   static const String rateApp = 'Rate App';
   static const String shareApp = 'Share App';

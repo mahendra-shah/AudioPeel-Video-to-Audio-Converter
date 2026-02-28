@@ -53,8 +53,6 @@ Future<void> main() async {
   // Initialise notification service for conversion progress notifications.
   try {
     await NotificationService.instance.initialize();
-    // Request notification permission at startup for smoother UX
-    await NotificationService.instance.requestPermission();
   } on Exception catch (e, st) {
     Logger.error(
       'NotificationService init failed',

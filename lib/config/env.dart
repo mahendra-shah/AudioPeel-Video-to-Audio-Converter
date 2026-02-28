@@ -1,15 +1,11 @@
 /// Build-time environment configuration.
 ///
-/// All values are injected via `--dart-define` flags so that secrets
-/// never appear in version control:
-///
+/// Pass `--dart-define=PRODUCTION=true` to activate production ad IDs:
 /// ```sh
-/// flutter build apk --release \
-///   --dart-define=PRODUCTION=true \
-///   --dart-define=ADMOB_APP_ID=ca-app-pub-XXXX~YYYY \
-///   --dart-define=BANNER_AD_UNIT_ID=ca-app-pub-XXXX/ZZZZ \
-///   --dart-define=INTERSTITIAL_AD_UNIT_ID=ca-app-pub-XXXX/WWWW
+/// flutter build appbundle --release --dart-define=PRODUCTION=true
 /// ```
+/// The AdMob App ID is read directly from AndroidManifest.xml by the SDK
+/// and does not need to be passed here.
 abstract final class Env {
   // ─── Build mode ────────────────────────────────────────────────────
 
@@ -19,17 +15,15 @@ abstract final class Env {
     defaultValue: false,
   );
 
-  // ─── AdMob ─────────────────────────────────────────────────────────
+  // ─── AdMob ad-unit IDs ─────────────────────────────────────────────
 
-  /// Test ad-unit IDs (Google-provided, safe to commit).
+  /// Google-provided test IDs — safe to commit, never charge real users.
   static const String _testBannerAdUnitId =
       'ca-app-pub-3940256099942544/6300978111';
   static const String _testInterstitialAdUnitId =
       'ca-app-pub-3940256099942544/1033173712';
-  static const String _testAdmobAppId =
-      'ca-app-pub-5583038215571668~2159652952';
 
-  /// Production ad-unit IDs (your real AdMob unit IDs).
+  /// Production ad-unit IDs.
   static const String _prodBannerAdUnitId = String.fromEnvironment(
     'BANNER_AD_UNIT_ID',
     defaultValue: 'ca-app-pub-5583038215571668/8873333176',
@@ -38,20 +32,12 @@ abstract final class Env {
     'INTERSTITIAL_AD_UNIT_ID',
     defaultValue: 'ca-app-pub-5583038215571668/1367114336',
   );
-  static const String _prodAdmobAppId = String.fromEnvironment(
-    'ADMOB_APP_ID',
-    defaultValue: 'ca-app-pub-5583038215571668~2159652952',
-  );
 
-  /// Resolved banner ad-unit ID (test or production).
+  /// Resolved banner ad-unit ID (test in debug/profile, production in release).
   static String get bannerAdUnitId =>
       isProduction ? _prodBannerAdUnitId : _testBannerAdUnitId;
 
-  /// Resolved interstitial ad-unit ID (test or production).
+  /// Resolved interstitial ad-unit ID (test in debug/profile, production in release).
   static String get interstitialAdUnitId =>
       isProduction ? _prodInterstitialAdUnitId : _testInterstitialAdUnitId;
-
-  /// Resolved AdMob app ID (test or production).
-  static String get admobAppId =>
-      isProduction ? _prodAdmobAppId : _testAdmobAppId;
 }

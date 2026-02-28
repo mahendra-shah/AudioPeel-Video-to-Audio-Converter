@@ -12,6 +12,7 @@ import '../constants/app_strings.dart';
 import '../providers/ad_provider.dart';
 import '../providers/conversion_provider.dart';
 import '../providers/history_provider.dart';
+import '../screens/conversion_options_screen.dart';
 import '../services/storage_service.dart';
 import '../utils/format_utils.dart';
 import '../widgets/common/banner_ad_widget.dart';
@@ -98,6 +99,28 @@ class _ConversionSuccessScreenState extends State<ConversionSuccessScreen> {
 void _goHome(BuildContext context) {
   context.read<ConversionProvider>().reset();
   Navigator.of(context).popUntil((route) => route.isFirst);
+}
+
+/// Opens the file picker immediately for a new conversion.
+/// If the user picks a file, navigates straight to options screen.
+/// If the user cancels, falls back to home.
+Future<void> _convertAnother(BuildContext context) async {
+  final provider = context.read<ConversionProvider>();
+  provider.reset();
+
+  final picked = await provider.selectVideo();
+  if (!context.mounted) return;
+
+  if (picked) {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const ConversionOptionsScreen(),
+      ),
+    );
+  } else {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
 }
 
 // ─── Success Header ───────────────────────────────────────────────────
@@ -398,7 +421,7 @@ class _ConvertAnotherButton extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: () => _goHome(context),
+        onPressed: () => _convertAnother(context),
         icon: const Icon(Icons.refresh_rounded, size: 20),
         label: const Text(AppStrings.convertAnother),
       ),
