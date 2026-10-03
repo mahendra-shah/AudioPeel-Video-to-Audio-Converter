@@ -1,101 +1,88 @@
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/env.dart';
 import '../constants/app_constants.dart';
 import '../utils/logger.dart';
 
-/// Manages ad loading, display, and frequency gating.
+/// Ad loading and frequency rules.
+///
+/// Rules (retention first):
+/// * nothing until UMP consent allows ads ([enable]);
+/// * no interstitial during the first [graceConversions] successes;
+/// * afterwards at most every [AppConstants.interstitialAdFrequency]th
+///   result, and only when the user *leaves* the result screen.
 class AdProvider extends ChangeNotifier {
-  int _conversionCount = 0;
+  static const int graceConversions = 3;
+
+  bool _enabled = false;
+  int _exitsSinceAd = 0;
   InterstitialAd? _interstitialAd;
-  bool _isInterstitialReady = false;
 
-  /// Whether an interstitial ad is loaded and ready to show.
-  bool get isInterstitialReady => _isInterstitialReady;
+  /// Whether ads may be requested (consent resolved).
+  bool get enabled => _enabled;
 
-  /// Preloads an interstitial ad.
+  /// Called once consent allows ads and the SDK is initialised.
+  void enable() {
+    if (_enabled) return;
+    _enabled = true;
+    notifyListeners();
+    loadInterstitial();
+  }
+
   void loadInterstitial() {
-
+    if (!_enabled || _interstitialAd != null) return;
     InterstitialAd.load(
       adUnitId: Env.interstitialAdUnitId,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
-        onAdLoaded: (ad) {
-          _interstitialAd = ad;
-          _isInterstitialReady = true;
-          Logger.debug('Interstitial ad loaded', 'AdProvider');
-          notifyListeners();
-        },
-        onAdFailedToLoad: (error) {
-          _isInterstitialReady = false;
-          Logger.warning(
-            'Interstitial failed to load: ${error.message}',
-            'AdProvider',
-          );
-        },
+        onAdLoaded: (ad) => _interstitialAd = ad,
+        onAdFailedToLoad: (error) => Logger.warning(
+          'Interstitial failed to load: ${error.message}',
+          'AdProvider',
+        ),
       ),
     );
   }
 
-  /// Shows the interstitial ad if it is ready and the conversion count
-  /// has reached the configured frequency.
-  ///
-  /// Returns `true` if an ad was shown.
-  Future<bool> showInterstitialIfReady() async {
-    _conversionCount++;
+  /// Call when the user leaves a finished result. May show an interstitial.
+  Future<void> onResultExit() async {
+    if (!_enabled) return;
+    final prefs = await SharedPreferences.getInstance();
+    final successes = prefs.getInt(AppConstants.prefTotalConversions) ?? 0;
+    if (successes <= graceConversions) return;
 
-    if (_conversionCount % AppConstants.interstitialAdFrequency != 0) {
-      return false;
-    }
+    _exitsSinceAd++;
+    if (_exitsSinceAd < AppConstants.interstitialAdFrequency) return;
 
-    if (!_isInterstitialReady || _interstitialAd == null) {
+    final ad = _interstitialAd;
+    if (ad == null) {
       loadInterstitial();
-      return false;
+      return;
     }
-
-    try {
-      _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
-        onAdDismissedFullScreenContent: (ad) {
-          ad.dispose();
-          _interstitialAd = null;
-          _isInterstitialReady = false;
-          loadInterstitial(); // Pre-load next one.
-        },
-        onAdFailedToShowFullScreenContent: (ad, error) {
-          Logger.warning('Interstitial failed to show: ${error.message}', 'Ad');
-          ad.dispose();
-          _interstitialAd = null;
-          _isInterstitialReady = false;
-          loadInterstitial();
-        },
-      );
-
-      await _interstitialAd!.show();
-      return true;
-    } on Exception catch (e, st) {
-      Logger.error(
-        'Failed to show interstitial',
-        error: e,
-        stackTrace: st,
-        tag: 'AdProvider',
-      );
-      _interstitialAd?.dispose();
-      _interstitialAd = null;
-      _isInterstitialReady = false;
-      loadInterstitial();
-      return false;
-    }
+    _interstitialAd = null;
+    _exitsSinceAd = 0;
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        loadInterstitial();
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        ad.dispose();
+        loadInterstitial();
+      },
+    );
+    await ad.show();
   }
 
-  /// Creates a banner ad widget-ready [BannerAd].
-  BannerAd? createBannerAd() {
+  BannerAd createBannerAd({required void Function() onLoaded}) {
     return BannerAd(
       adUnitId: Env.bannerAdUnitId,
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(
-        onAdLoaded: (_) => Logger.debug('Banner loaded', 'AdProvider'),
+        onAdLoaded: (_) => onLoaded(),
         onAdFailedToLoad: (ad, error) {
           Logger.warning('Banner failed: ${error.message}', 'AdProvider');
           ad.dispose();

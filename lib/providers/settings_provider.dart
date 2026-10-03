@@ -2,42 +2,42 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/app_constants.dart';
+import '../models/audio_quality.dart';
+import '../models/convert_options.dart';
+import '../models/output_format.dart';
 import '../utils/logger.dart';
 
-/// Manages user preferences such as theme mode and default quality.
-///
-/// Persists state via [SharedPreferences] so choices survive restarts.
+/// User preferences: theme and the Studio's defaults.
 class SettingsProvider extends ChangeNotifier {
   static const _tag = 'Settings';
   static const _prefNormalizeVolume = 'normalize_volume';
-  static const _prefAutoDelete = 'auto_delete_original';
   static const _prefThemeMode = 'theme_mode';
+  static const _prefFormat = 'default_format';
+  static const _prefAlbumArt = 'album_art';
+  static const _prefShareTipDismissed = 'share_tip_dismissed';
 
   ThemeMode _themeMode = ThemeMode.system;
   int _defaultQualityKbps = AppConstants.defaultQualityKbps;
+  OutputFormat _defaultFormat = OutputFormat.mp3;
   bool _normalizeVolume = false;
-  bool _autoDeleteOriginal = false;
+  bool _albumArt = true;
+  bool _shareTipDismissed = false;
 
-  /// The active theme mode. Defaults to [ThemeMode.system].
   ThemeMode get themeMode => _themeMode;
-
-  /// Convenience getter — `true` when the resolved theme is dark.
-  ///
-  /// For [ThemeMode.system] this falls back to `true` since we cannot
-  /// query the platform from a non-widget class. The actual rendering
-  /// defers to [MaterialApp.themeMode] which handles system correctly.
-  bool get isDarkMode => _themeMode == ThemeMode.dark;
-
-  /// The user's preferred audio quality in kbps.
   int get defaultQualityKbps => _defaultQualityKbps;
-
-  /// Whether volume normalisation is enabled during conversion.
+  OutputFormat get defaultFormat => _defaultFormat;
   bool get normalizeVolume => _normalizeVolume;
+  bool get albumArt => _albumArt;
+  bool get shareTipDismissed => _shareTipDismissed;
 
-  /// Whether the original video should be deleted after conversion.
-  bool get autoDeleteOriginal => _autoDeleteOriginal;
+  /// Starting point for a fresh Studio session.
+  ConvertOptions get defaultOptions => ConvertOptions(
+    format: _defaultFormat,
+    quality: AudioQuality.fromKbps(_defaultQualityKbps),
+    normalize: _normalizeVolume,
+    albumArt: _albumArt,
+  );
 
-  /// Loads persisted settings from disk. Call once at app startup.
   Future<void> loadSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -49,8 +49,10 @@ class SettingsProvider extends ChangeNotifier {
       _defaultQualityKbps =
           prefs.getInt(AppConstants.prefDefaultQuality) ??
           AppConstants.defaultQualityKbps;
+      _defaultFormat = OutputFormat.fromName(prefs.getString(_prefFormat));
       _normalizeVolume = prefs.getBool(_prefNormalizeVolume) ?? false;
-      _autoDeleteOriginal = prefs.getBool(_prefAutoDelete) ?? false;
+      _albumArt = prefs.getBool(_prefAlbumArt) ?? true;
+      _shareTipDismissed = prefs.getBool(_prefShareTipDismissed) ?? false;
     } on Exception catch (e, st) {
       Logger.error(
         'Failed to load settings',
@@ -62,68 +64,47 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Sets the app theme mode and persists the choice.
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
     notifyListeners();
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_prefThemeMode, mode.name);
-    } on Exception catch (e, st) {
-      Logger.error(
-        'Failed to persist theme mode',
-        error: e,
-        stackTrace: st,
-        tag: _tag,
-      );
-    }
+    await _save((p) => p.setString(_prefThemeMode, mode.name));
   }
 
-  /// Updates the default quality and persists the choice.
   Future<void> setDefaultQuality(int kbps) async {
     _defaultQualityKbps = kbps;
     notifyListeners();
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(AppConstants.prefDefaultQuality, kbps);
-    } on Exception catch (e, st) {
-      Logger.error(
-        'Failed to save quality',
-        error: e,
-        stackTrace: st,
-        tag: _tag,
-      );
-    }
+    await _save((p) => p.setInt(AppConstants.prefDefaultQuality, kbps));
   }
 
-  /// Toggles the normalize-volume flag and persists it.
+  Future<void> setDefaultFormat(OutputFormat format) async {
+    _defaultFormat = format;
+    notifyListeners();
+    await _save((p) => p.setString(_prefFormat, format.name));
+  }
+
   Future<void> toggleNormalizeVolume() async {
     _normalizeVolume = !_normalizeVolume;
     notifyListeners();
-    await _saveBool(_prefNormalizeVolume, _normalizeVolume);
+    await _save((p) => p.setBool(_prefNormalizeVolume, _normalizeVolume));
   }
 
-  /// Toggles the auto-delete-original flag and persists it.
-  Future<void> toggleAutoDeleteOriginal() async {
-    _autoDeleteOriginal = !_autoDeleteOriginal;
+  Future<void> toggleAlbumArt() async {
+    _albumArt = !_albumArt;
     notifyListeners();
-    await _saveBool(_prefAutoDelete, _autoDeleteOriginal);
+    await _save((p) => p.setBool(_prefAlbumArt, _albumArt));
   }
 
-  // ─── Private ────────────────────────────────────────────────────────
+  Future<void> dismissShareTip() async {
+    _shareTipDismissed = true;
+    notifyListeners();
+    await _save((p) => p.setBool(_prefShareTipDismissed, true));
+  }
 
-  /// Saves a boolean preference, logging errors instead of crashing.
-  Future<void> _saveBool(String key, bool value) async {
+  Future<void> _save(Future<bool> Function(SharedPreferences) write) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(key, value);
+      await write(await SharedPreferences.getInstance());
     } on Exception catch (e, st) {
-      Logger.error(
-        'Failed to persist $key',
-        error: e,
-        stackTrace: st,
-        tag: _tag,
-      );
+      Logger.error('Failed to persist', error: e, stackTrace: st, tag: _tag);
     }
   }
 }

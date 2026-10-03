@@ -1,33 +1,43 @@
-import 'dart:math' as math;
+import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 
-import '../constants/app_colors.dart';
-import '../constants/app_constants.dart';
-import '../constants/app_strings.dart';
+import '../design/motion.dart';
+import '../design/tokens.dart';
 import '../models/audio_file.dart';
-import '../providers/conversion_provider.dart';
+import '../models/media_item.dart';
 import '../providers/history_provider.dart';
-import '../services/onboarding_service.dart';
-import '../services/ringtone_service.dart';
-import '../services/storage_service.dart';
-import '../widgets/common/audio_icon.dart';
-import '../widgets/common/banner_ad_widget.dart';
-import '../widgets/common/recent_conversion_tile.dart';
-import 'conversion_options_screen.dart';
-import 'history_screen.dart';
-import 'settings_screen.dart';
+import '../providers/player_provider.dart';
+import '../providers/settings_provider.dart';
+import '../services/media_bridge.dart';
+import '../utils/format_utils.dart';
+import '../utils/logger.dart';
+import '../widgets/mini_player.dart';
+import '../widgets/pressable.dart';
+import '../widgets/section_card.dart';
+import 'batch_studio_screen.dart';
+import 'studio_screen.dart';
 
-/// The main home screen — video selection + recent conversions.
+/// Intent pre-selected when the user taps a quick-intent chip.
+enum _QuickIntent {
+  extract('Extract', Icons.music_note_rounded),
+  cut('Cut & convert', Icons.content_cut_rounded),
+  ringtone('Ringtone', Icons.notifications_active_rounded),
+  batch('Batch', Icons.burst_mode_rounded);
+
+  const _QuickIntent(this.label, this.icon);
+  final String label;
+  final IconData icon;
+}
+
+/// The "Convert" tab home screen.
 ///
-/// Features a hero graphic with orbiting format badges around a central
-/// SELECT button, feature cards (hidden when recents exist), and a
-/// recent-conversions section.
+/// Sections (top to bottom):
+///  1. Hero — heading + Select Video CTA
+///  2. Quick intents strip
+///  3. Share tip banner (dismissible)
+///  4. Recent conversions (up to 3)
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -36,937 +46,661 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<AudioFile> _recentFiles = [];
-  bool _isLoading = true;
-  bool _isPickingVideo = false;
-
-  /// Key for the SELECT VIDEO button — used by the product tour to
-  /// highlight it.
-  final _selectButtonKey = GlobalKey();
+  bool _picking = false;
 
   @override
   void initState() {
     super.initState();
-    _loadRecentConversions();
-    // Re-load recents whenever the history provider changes (e.g. after
-    // a deletion on the history screen).
-    context.read<HistoryProvider>().addListener(_loadRecentConversions);
-
-    // Show the onboarding product tour on first launch.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _showTourIfNeeded());
-  }
-
-  @override
-  void dispose() {
-    context.read<HistoryProvider>().removeListener(_loadRecentConversions);
-    super.dispose();
-  }
-
-  Future<void> _loadRecentConversions() async {
-    final history = context.read<HistoryProvider>();
-    final files = await history.recentConversions(limit: 5);
-    if (mounted) {
-      setState(() {
-        _recentFiles = files;
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _onSelectVideo() async {
-    if (_isPickingVideo) return;
-    setState(() => _isPickingVideo = true);
-
-    final conversion = context.read<ConversionProvider>();
-    final picked = await conversion.selectVideo();
-
-    if (!mounted) return;
-
-    // Only navigate if a NEW video was actually picked (not cancelled).
-    if (picked) {
-      // Navigate immediately without delay.
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => const ConversionOptionsScreen(),
-        ),
-      );
-      // Refresh recent list when returning from conversion flow.
-      if (mounted) _loadRecentConversions();
-    }
-
-    if (mounted) setState(() => _isPickingVideo = false);
-  }
-
-  void _onSeeAll() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => const HistoryScreen()));
-  }
-
-  void _onShareFile(AudioFile file) {
-    SharePlus.instance.share(ShareParams(files: [XFile(file.outputAudioPath)]));
-  }
-
-  void _onPlayFile(AudioFile file) {
-    OpenFilex.open(file.outputAudioPath, type: 'audio/mpeg');
-  }
-
-  void _confirmDeleteRecent(AudioFile file) {
-    showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text(AppStrings.deleteConversion),
-        content: Text('Delete "${file.outputAudioName}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text(AppStrings.no),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text(AppStrings.yes),
-          ),
-        ],
-      ),
-    ).then((confirmed) async {
-      if (confirmed == true && mounted) {
-        await StorageService().deleteFile(file.outputAudioPath);
-        if (mounted && file.id != null) {
-          context.read<HistoryProvider>().deleteConversion(file.id!);
-          // Refresh the recent conversions list.
-          _loadRecentConversions();
-        }
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<HistoryProvider>().refresh();
     });
   }
 
-  Future<void> _onSetRingtone(AudioFile file) async {
-    final hasPermission = await RingtoneService.hasWriteSettingsPermission();
-    if (!hasPermission) {
-      if (!mounted) return;
-      final shouldOpen = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Permission Required'),
-          content: const Text(
-            'To set a ringtone, the app needs the "Modify System Settings" '
-            'permission. Would you like to open settings to grant it?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text(AppStrings.no),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Open Settings'),
-            ),
-          ],
-        ),
-      );
-      if (shouldOpen == true) {
-        await RingtoneService.requestWriteSettings();
+  // ── Video picking ──────────────────────────────────────────────────────
+
+  Future<void> _pickAndNavigate({
+    bool multiple = false,
+    _QuickIntent intent = _QuickIntent.extract,
+  }) async {
+    if (_picking) return;
+    Haptics.commit();
+    setState(() => _picking = true);
+    try {
+      final uris = await MediaBridge.pickVideos(multiple: multiple);
+      if (!mounted || uris.isEmpty) return;
+
+      if (uris.length == 1) {
+        await _openSingle(uris.first, intent: intent);
+      } else {
+        await _openBatch(uris);
       }
-      return;
+    } on Exception catch (e) {
+      Logger.warning('pick failed: $e', 'HomeScreen');
+    } finally {
+      if (mounted) setState(() => _picking = false);
     }
+  }
 
-    final success = await RingtoneService.setAsRingtone(file.outputAudioPath);
-    if (!mounted) return;
+  Future<void> _openSingle(String uri, {_QuickIntent intent = _QuickIntent.extract}) async {
+    final item = await _probeWithOverlay(uri);
+    if (!mounted || item == null) return;
+    _push(StudioScreen(media: item, intent: intent.name));
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? '"${file.outputAudioName}" set as ringtone'
-              : 'Failed to set ringtone',
-        ),
-      ),
+  Future<void> _openBatch(List<String> uris) async {
+    final items = await _batchProbeWithOverlay(uris);
+    if (!mounted || items.isEmpty) return;
+    _push(BatchStudioScreen(items: items));
+  }
+
+  void _push(Widget screen) {
+    Navigator.of(context).push(Motion.sharedAxis(screen));
+  }
+
+  // ── Probe overlays ─────────────────────────────────────────────────────
+
+  Future<MediaItem?> _probeWithOverlay(String uri) async {
+    _showProbeDialog();
+    try {
+      return await MediaBridge.probe(uri);
+    } on Exception catch (e) {
+      Logger.warning('probe: $e', 'HomeScreen');
+      return null;
+    } finally {
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    }
+  }
+
+  Future<List<MediaItem>> _batchProbeWithOverlay(List<String> uris) async {
+    _showProbeDialog();
+    try {
+      final items = <MediaItem>[];
+      for (final uri in uris) {
+        final item = await MediaBridge.probe(uri);
+        if (item != null) items.add(item);
+      }
+      return items;
+    } on Exception catch (e) {
+      Logger.warning('batch probe: $e', 'HomeScreen');
+      return [];
+    } finally {
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    }
+  }
+
+  void _showProbeDialog() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _ProbeOverlayDialog(),
     );
   }
 
-  // ─── Product Tour ──────────────────────────────────────────────────
-
-  Future<void> _showTourIfNeeded() async {
-    final alreadySeen = await OnboardingService.isComplete();
-    if (alreadySeen || !mounted) return;
-
-    // Small delay so the hero graphic is fully laid out.
-    await Future<void>.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
-
-    final targets = [
-      TargetFocus(
-        identify: 'selectVideoButton',
-        keyTarget: _selectButtonKey,
-        alignSkip: Alignment.bottomCenter,
-        enableOverlayTab: true,
-        shape: ShapeLightFocus.Circle,
-        paddingFocus: 20,
-        contents: [
-          TargetContent(
-            align: ContentAlign.bottom,
-            builder: (context, controller) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Start Here! 🎬',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Tap this button to select a video\nand convert it to audio instantly.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '👆 Tap the button above to begin',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 13,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    ];
-
-    TutorialCoachMark(
-      targets: targets,
-      colorShadow: AppColors.primary,
-      opacityShadow: 0.85,
-      hideSkip: true,
-      onClickTarget: (target) {
-        // User tapped the SELECT VIDEO button — end tour and start
-        // the conversion flow.
-        OnboardingService.markComplete();
-        _onSelectVideo();
-      },
-      onFinish: () => OnboardingService.markComplete(),
-      onSkip: () {
-        OnboardingService.markComplete();
-        return true;
-      },
-    ).show(context: context);
-  }
+  // ── Build ──────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final hasRecents = !_isLoading && _recentFiles.isNotEmpty;
+    final c = context.peel;
+    final history = context.watch<HistoryProvider>();
+    final settings = context.watch<SettingsProvider>();
+    final player = context.watch<PlayerProvider>();
+    final screenH = MediaQuery.sizeOf(context).height;
+
+    // Bottom padding to clear the mini-player + nav bar.
+    final bottomPad = MediaQuery.paddingOf(context).bottom + 72 + 68 + Space.md;
 
     return Scaffold(
-      appBar: _buildAppBar(context),
-      body: _isPickingVideo
-          ? const SizedBox.shrink() // Hide content during video selection
-          : Column(
+      backgroundColor: c.canvas,
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          // ── App bar ───────────────────────────────────────────────────
+          SliverAppBar(
+            pinned: false,
+            floating: true,
+            backgroundColor: c.canvas,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            title: Row(
               children: [
-                // ── Hero Graphic (takes available space) ─────────
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppConstants.paddingScreen,
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // ── Hero Graphic with orbiting badges ───────
-                        Flexible(
-                          child: _HeroOrbitGraphic(
-                            compact: hasRecents,
-                            onSelect: _onSelectVideo,
-                            selectButtonKey: _selectButtonKey,
-                          ),
-                        ),
-
-                        const SizedBox(height: AppConstants.spacingSmall),
-
-                        // ── Subtitle text ──────────────────────────
-                        Text(
-                          'Tap the button to start converting\nyour videos to audio',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).textTheme.bodySmall?.color,
-                                height: 1.5,
-                              ),
-                        ),
-
-                        // ── Feature cards (hidden when recents exist) ──
-                        if (!hasRecents) ...[
-                          const SizedBox(height: AppConstants.spacingElement),
-                          const _FeatureCardsRow(),
-                        ],
-                      ],
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Space.sm,
+                    vertical: Space.xxs,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: c.peelGradient,
+                    borderRadius: BorderRadius.circular(Radii.chip),
+                  ),
+                  child: Text(
+                    'AudioPeel',
+                    style: context.text.titleSmall?.copyWith(
+                      color: c.onPeel,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-
-                // ── Recent conversions (fixed at bottom) ────────
-                if (hasRecents) _buildRecentSection(context),
-
-                // Sticky banner ad at the bottom.
-                const BannerAdWidget(),
               ],
             ),
-    );
-  }
-
-  // ─── App Bar ──────────────────────────────────────────────────────
-
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return AppBar(
-      leadingWidth: 48,
-      leading: Padding(
-        padding: const EdgeInsets.only(left: AppConstants.paddingScreen),
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.3),
-                blurRadius: 8,
-                spreadRadius: 0,
-                offset: const Offset(0, 2),
-              ),
-            ],
           ),
-          child: ClipOval(
-            child: Image.asset(
-              'assets/icon/audiopeel-nobg.png',
-              width: 32,
-              height: 32,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                // Fallback to branded icon if asset fails to load
-                return Container(
-                  color: AppColors.primary,
-                  child: AudioIcon(
-                    size: 18,
-                    color: Colors.white,
+
+          // ── Hero ──────────────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Container(
+              constraints: BoxConstraints(minHeight: screenH * 0.38),
+              padding: const EdgeInsets.fromLTRB(
+                Space.gutter,
+                Space.xl,
+                Space.gutter,
+                Space.lg,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: Space.sm),
+                  Text(
+                    'Extract audio\nfrom any video',
+                    textAlign: TextAlign.center,
+                    style: context.text.displaySmall?.copyWith(
+                      color: c.ink,
+                      height: 1.1,
+                    ),
                   ),
-                );
-              },
+                  const SizedBox(height: Space.xs),
+                  Text(
+                    '100% offline · Nothing uploaded',
+                    style: context.text.bodyMedium?.copyWith(
+                      color: c.inkMuted,
+                    ),
+                  ),
+                  const SizedBox(height: Space.xl),
+                  _SelectVideoButton(
+                    loading: _picking,
+                    onPressed: () => _pickAndNavigate(multiple: true),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ),
-      title: Text(
-        AppStrings.homeTitle,
-        style: theme.textTheme.titleLarge?.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.settings_outlined),
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
-            );
-          },
-        ),
-      ],
-    );
-  }
 
-  // ─── Recent Conversions Header ────────────────────────────────────
+          // ── Quick intents ─────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: Space.gutter,
+                vertical: Space.xs,
+              ),
+              child: _QuickIntentStrip(
+                onTap: (intent) {
+                  switch (intent) {
+                    case _QuickIntent.batch:
+                      _pickAndNavigate(multiple: true, intent: intent);
+                    case _QuickIntent.ringtone:
+                      _pickAndNavigate(multiple: false, intent: intent);
+                    default:
+                      _pickAndNavigate(multiple: false, intent: intent);
+                  }
+                },
+              ),
+            ),
+          ),
 
-  Widget _buildRecentSection(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.paddingScreen,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: AppConstants.spacingSmall),
-          _buildRecentHeader(context),
-          const SizedBox(height: AppConstants.spacingSmall),
-          _buildRecentList(context),
-          const SizedBox(height: AppConstants.spacingSmall),
+          const SliverToBoxAdapter(child: SizedBox(height: Space.md)),
+
+          // ── Share tip banner ──────────────────────────────────────────
+          if (!settings.shareTipDismissed)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
+                child: _ShareTipBanner(
+                  onDismiss: () => settings.dismissShareTip(),
+                ),
+              ),
+            ),
+
+          if (!settings.shareTipDismissed)
+            const SliverToBoxAdapter(child: SizedBox(height: Space.md)),
+
+          // ── Recent conversions ────────────────────────────────────────
+          if (history.recent.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  Space.gutter,
+                  0,
+                  Space.gutter,
+                  Space.sm,
+                ),
+                child: Text(
+                  'Recent',
+                  style: context.text.titleSmall?.copyWith(color: c.ink),
+                ),
+              ),
+            ),
+            SliverList.separated(
+              itemCount: history.recent.length,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(height: Space.xs),
+              itemBuilder: (ctx, i) => Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Space.gutter,
+                ),
+                child: _AudioFileTile(
+                  file: history.recent[i],
+                  index: i,
+                  isPlaying: player.isPlayingUri(
+                    history.recent[i].outputAudioPath,
+                  ),
+                  onTap: () {
+                    final f = history.recent[i];
+                    Haptics.tap();
+                    context.read<PlayerProvider>().toggle(
+                      f.outputAudioPath,
+                      title: f.outputAudioName,
+                      subtitle: f.qualityBadge,
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+
+          // ── Bottom padding ────────────────────────────────────────────
+          SliverToBoxAdapter(child: SizedBox(height: bottomPad)),
         ],
       ),
     );
   }
-
-  Widget _buildRecentHeader(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          AppStrings.recentConversions,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        GestureDetector(
-          onTap: _onSeeAll,
-          child: Text(
-            AppStrings.seeAll,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ─── Recent Conversions List ──────────────────────────────────────
-
-  Widget _buildRecentList(BuildContext context) {
-    if (_isLoading) {
-      return const Padding(
-        padding: EdgeInsets.only(top: AppConstants.spacingSection),
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    // Show at most 3 recent items — no scrolling.
-    final visibleFiles = _recentFiles.take(3).toList();
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: visibleFiles
-          .map(
-            (file) => RecentConversionTile(
-              key: ValueKey(file.id),
-              audioFile: file,
-              onTap: () => _onPlayFile(file),
-              onShare: () => _onShareFile(file),
-              onRingtone: () => _onSetRingtone(file),
-              onDelete: () => _confirmDeleteRecent(file),
-            ),
-          )
-          .toList(),
-    );
-  }
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// Hero Orbit Graphic
-// ═══════════════════════════════════════════════════════════════════════
+// ── Select Video button ─────────────────────────────────────────────────────
 
-/// Animated hero with concentric rings, a central SELECT button, and
-/// four format badges (.MP4, .MOV, .AVI, .MKV) that orbit smoothly.
-class _HeroOrbitGraphic extends StatefulWidget {
-  const _HeroOrbitGraphic({
-    required this.compact,
-    required this.onSelect,
-    required this.selectButtonKey,
+class _SelectVideoButton extends StatelessWidget {
+  const _SelectVideoButton({
+    required this.onPressed,
+    this.loading = false,
   });
 
-  /// When `true`, the graphic is slightly smaller to leave room for
-  /// the recent-conversions section below.
-  final bool compact;
-
-  /// Called when the central SELECT button is tapped.
-  final VoidCallback onSelect;
-
-  /// GlobalKey for the SELECT button — used for the product tour.
-  final GlobalKey selectButtonKey;
+  final VoidCallback onPressed;
+  final bool loading;
 
   @override
-  State<_HeroOrbitGraphic> createState() => _HeroOrbitGraphicState();
+  Widget build(BuildContext context) {
+    final c = context.peel;
+    return Pressable(
+      onPressed: loading ? null : onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: Space.xxl,
+          vertical: Space.lg,
+        ),
+        decoration: BoxDecoration(
+          gradient: c.peelGradient,
+          borderRadius: BorderRadius.circular(Radii.pill),
+          boxShadow: [
+            BoxShadow(
+              color: c.peel.withValues(alpha: 0.35),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedSwitcher(
+              duration: Motion.short,
+              child: loading
+                  ? SizedBox(
+                      key: const ValueKey('loading'),
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: c.onPeel,
+                      ),
+                    )
+                  : Icon(
+                      Icons.music_note_rounded,
+                      key: const ValueKey('icon'),
+                      color: c.onPeel,
+                      size: 22,
+                    ),
+            ),
+            const SizedBox(width: Space.sm),
+            Text(
+              'Select Video',
+              style: context.text.labelLarge?.copyWith(
+                color: c.onPeel,
+                fontWeight: FontWeight.w800,
+                fontSize: 17,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _HeroOrbitGraphicState extends State<_HeroOrbitGraphic>
+// ── Quick intent strip ──────────────────────────────────────────────────────
+
+class _QuickIntentStrip extends StatelessWidget {
+  const _QuickIntentStrip({required this.onTap});
+  final void Function(_QuickIntent) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      clipBehavior: Clip.none,
+      child: Row(
+        children: _QuickIntent.values
+            .map(
+              (intent) => Padding(
+                padding: const EdgeInsets.only(right: Space.xs),
+                child: _IntentChip(
+                  intent: intent,
+                  onTap: () => onTap(intent),
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+}
+
+class _IntentChip extends StatelessWidget {
+  const _IntentChip({required this.intent, required this.onTap});
+  final _QuickIntent intent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.peel;
+    return Pressable(
+      onPressed: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: Space.md,
+          vertical: Space.xs,
+        ),
+        decoration: BoxDecoration(
+          color: c.surfaceHi,
+          borderRadius: BorderRadius.circular(Radii.chip),
+          border: Border.all(color: c.line),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(intent.icon, size: 16, color: c.peel),
+            const SizedBox(width: Space.xxs),
+            Text(
+              intent.label,
+              style: context.text.labelMedium?.copyWith(color: c.ink),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Share tip banner ────────────────────────────────────────────────────────
+
+class _ShareTipBanner extends StatelessWidget {
+  const _ShareTipBanner({required this.onDismiss});
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.peel;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        Space.md,
+        Space.sm,
+        Space.xs,
+        Space.sm,
+      ),
+      decoration: BoxDecoration(
+        color: c.groove.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(Radii.card),
+        border: Border.all(color: c.groove.withValues(alpha: 0.30)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.tips_and_updates_rounded, color: c.groove, size: 20),
+          const SizedBox(width: Space.sm),
+          Expanded(
+            child: Text(
+              'Tip: Share any video to AudioPeel from Gallery, WhatsApp, or Files',
+              style: context.text.bodySmall?.copyWith(color: c.ink),
+            ),
+          ),
+          GestureDetector(
+            onTap: () {
+              Haptics.tap();
+              onDismiss();
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.all(Space.xs),
+              child: Icon(Icons.close_rounded, size: 18, color: c.inkMuted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Audio file tile (recent strip) ─────────────────────────────────────────
+
+class _AudioFileTile extends StatefulWidget {
+  const _AudioFileTile({
+    required this.file,
+    required this.index,
+    required this.onTap,
+    required this.isPlaying,
+  });
+
+  final AudioFile file;
+  final int index;
+  final VoidCallback onTap;
+  final bool isPlaying;
+
+  @override
+  State<_AudioFileTile> createState() => _AudioFileTileState();
+}
+
+class _AudioFileTileState extends State<_AudioFileTile>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  late final AnimationController _ctrl;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 12),
-    )..repeat();
+    _ctrl = AnimationController(vsync: this, duration: Motion.medium);
+    _fade = CurvedAnimation(parent: _ctrl, curve: Motion.standard);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.15),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Motion.emphasizedDecel));
+
+    Future.delayed(Motion.staggerFor(widget.index), () {
+      if (mounted) _ctrl.forward();
+    });
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _ctrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Make the graphic fill most of the screen width.
-    final screenWidth = MediaQuery.of(context).size.width;
-    final size = widget.compact ? screenWidth * 0.78 : screenWidth * 0.88;
-    final outerRing = size;
-    final middleRing = size * 0.75;
-    final innerButton = size * 0.48;
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: _TileContent(
+          file: widget.file,
+          isPlaying: widget.isPlaying,
+          onTap: widget.onTap,
+        ),
+      ),
+    );
+  }
+}
 
-    return Center(
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, _) {
-            return Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                // ── Outer dashed ring ────────────────────────
-                CustomPaint(
-                  size: Size(outerRing, outerRing),
-                  painter: _DashedCirclePainter(
-                    color: AppColors.primary.withValues(alpha: 0.2),
-                    strokeWidth: 1.5,
-                    dashLength: 8,
-                    gapLength: 5,
-                  ),
-                ),
+class _TileContent extends StatelessWidget {
+  const _TileContent({
+    required this.file,
+    required this.isPlaying,
+    required this.onTap,
+  });
 
-                // ── Middle solid ring ────────────────────────
-                Container(
-                  width: middleRing,
-                  height: middleRing,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      width: 1.5,
+  final AudioFile file;
+  final bool isPlaying;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.peel;
+    final f = file;
+
+    return Pressable(
+      onPressed: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: Space.md,
+          vertical: Space.sm,
+        ),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: BorderRadius.circular(Radii.card),
+          border: Border.all(color: c.line),
+        ),
+        child: Row(
+          children: [
+            // Play state indicator
+            AnimatedContainer(
+              duration: Motion.short,
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: isPlaying
+                    ? c.peel.withValues(alpha: 0.15)
+                    : c.surfaceHi,
+                borderRadius: BorderRadius.circular(Radii.chip),
+              ),
+              child: Icon(
+                isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                color: isPlaying ? c.peel : c.inkMuted,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: Space.sm),
+
+            // Name + meta
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    f.outputAudioName,
+                    style: context.text.bodyMedium?.copyWith(
+                      color: c.ink,
+                      fontWeight: FontWeight.w600,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-
-                // ── Orbiting format badges ───────────────────
-                ..._buildBadges(outerRing / 2),
-
-                // ── Central SELECT VIDEO button ──────────────
-                GestureDetector(
-                  key: widget.selectButtonKey,
-                  onTap: widget.onSelect,
-                  child: Container(
-                    width: innerButton,
-                    height: innerButton,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                  const SizedBox(height: Space.xxs),
+                  Row(
+                    children: [
+                      // Format badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Space.xs,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: c.peel.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          f.format.label,
+                          style: context.text.labelSmall?.copyWith(
+                            color: c.peel,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                       ),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.4),
-                          blurRadius: 40,
-                          spreadRadius: 4,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.add_rounded,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'SELECT VIDEO',
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.5,
-                                fontSize: 13,
-                              ),
-                        ),
-                      ],
-                    ),
+                      const SizedBox(width: Space.xs),
+                      Text(
+                        FormatUtils.duration(f.duration),
+                        style: context.text.bodySmall,
+                      ),
+                      const SizedBox(width: Space.xs),
+                      Text('·', style: context.text.bodySmall),
+                      const SizedBox(width: Space.xs),
+                      Text(
+                        FormatUtils.fileSize(f.fileSize),
+                        style: context.text.bodySmall,
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  /// Builds orbiting format badges at multiple distances with varying
-  /// opacity — closer = larger + more opaque, farther = smaller + faint.
-  List<Widget> _buildBadges(double orbitRadius) {
-    // Inner orbit — primary formats, full opacity, large badges.
-    const innerFormats = [
-      _OrbitBadgeData('.MP4', Icons.movie_rounded, Color(0xFF6366F1)),
-      _OrbitBadgeData('.MOV', Icons.video_file_rounded, AppColors.success),
-      _OrbitBadgeData('.AVI', Icons.play_circle_rounded, AppColors.warning),
-      _OrbitBadgeData('.MKV', Icons.video_library_rounded, Color(0xFF8B5CF6)),
-    ];
-
-    // Middle orbit — secondary formats, medium opacity.
-    const midFormats = [
-      _OrbitBadgeData('.WEBM', Icons.web_rounded, Color(0xFF0EA5E9)),
-      _OrbitBadgeData('.FLV', Icons.slideshow_rounded, Color(0xFFF43F5E)),
-      _OrbitBadgeData('.WMV', Icons.ondemand_video_rounded, Color(0xFF14B8A6)),
-    ];
-
-    // Outer orbit — rare formats, very low opacity, tiny badges.
-    const outerFormats = [
-      _OrbitBadgeData('.3GP', Icons.phone_android_rounded, Color(0xFF78716C)),
-      _OrbitBadgeData('.TS', Icons.stream_rounded, Color(0xFF6B7280)),
-      _OrbitBadgeData('.M4V', Icons.theaters_rounded, Color(0xFF9CA3AF)),
-    ];
-
-    const swingAmplitude = 12 * math.pi / 180;
-
-    final List<Widget> badges = [];
-
-    // ── Inner orbit (4 badges, radius 0.92, opacity 0.85, scale 1.0) ──
-    for (var i = 0; i < innerFormats.length; i++) {
-      final baseAngle = -math.pi * 0.7 + i * (2 * math.pi / 4);
-      final direction = i.isEven ? 1.0 : -1.0;
-      final angle =
-          baseAngle +
-          swingAmplitude *
-              direction *
-              math.sin(_controller.value * 2 * math.pi);
-
-      final dx = orbitRadius * 0.92 * math.cos(angle);
-      final dy = orbitRadius * 0.92 * math.sin(angle);
-
-      badges.add(
-        Transform.translate(
-          offset: Offset(dx, dy),
-          child: _FormatBadge(
-            label: innerFormats[i].label,
-            icon: innerFormats[i].icon,
-            color: innerFormats[i].color,
-            opacity: 0.85,
-            scale: 1.0,
-          ),
-        ),
-      );
-    }
-
-    // ── Middle orbit (3 badges, radius 0.72, opacity 0.45, scale 0.8) ──
-    for (var i = 0; i < midFormats.length; i++) {
-      final baseAngle = -math.pi * 0.4 + i * (2 * math.pi / 3);
-      final direction = i.isEven ? -1.0 : 1.0;
-      final angle =
-          baseAngle +
-          swingAmplitude *
-              0.6 *
-              direction *
-              math.sin(_controller.value * 2 * math.pi + math.pi / 3);
-
-      final dx = orbitRadius * 0.72 * math.cos(angle);
-      final dy = orbitRadius * 0.72 * math.sin(angle);
-
-      badges.add(
-        Transform.translate(
-          offset: Offset(dx, dy),
-          child: _FormatBadge(
-            label: midFormats[i].label,
-            icon: midFormats[i].icon,
-            color: midFormats[i].color,
-            opacity: 0.45,
-            scale: 0.8,
-          ),
-        ),
-      );
-    }
-
-    // ── Outer orbit (3 badges, radius 1.08, opacity 0.2, scale 0.65) ──
-    for (var i = 0; i < outerFormats.length; i++) {
-      final baseAngle = math.pi * 0.1 + i * (2 * math.pi / 3);
-      final direction = i.isEven ? 1.0 : -1.0;
-      final angle =
-          baseAngle +
-          swingAmplitude *
-              0.4 *
-              direction *
-              math.sin(_controller.value * 2 * math.pi + math.pi / 1.5);
-
-      final dx = orbitRadius * 1.08 * math.cos(angle);
-      final dy = orbitRadius * 1.08 * math.sin(angle);
-
-      badges.add(
-        Transform.translate(
-          offset: Offset(dx, dy),
-          child: _FormatBadge(
-            label: outerFormats[i].label,
-            icon: outerFormats[i].icon,
-            color: outerFormats[i].color,
-            opacity: 0.2,
-            scale: 0.65,
-          ),
-        ),
-      );
-    }
-
-    return badges;
-  }
-}
-
-/// Data holder for an orbit badge.
-class _OrbitBadgeData {
-  const _OrbitBadgeData(this.label, this.icon, this.color);
-
-  final String label;
-  final IconData icon;
-  final Color color;
-}
-
-/// A capsule-shaped badge showing a small icon and format extension.
-///
-/// [opacity] and [scale] control how prominent it appears based on
-/// its distance from the centre.
-class _FormatBadge extends StatelessWidget {
-  const _FormatBadge({
-    required this.label,
-    required this.icon,
-    required this.color,
-    this.opacity = 1.0,
-    this.scale = 1.0,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color color;
-  final double opacity;
-  final double scale;
-
-  @override
-  Widget build(BuildContext context) {
-    final badgePadH = 10.0 * scale;
-    final badgePadV = 6.0 * scale;
-    final iconSize = 14.0 * scale;
-    final fontSize = 12.0 * scale;
-
-    return Opacity(
-      opacity: opacity,
-      child: Transform.scale(
-        scale: scale,
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: badgePadH,
-            vertical: badgePadV,
-          ),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.78),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.3 * opacity),
-                blurRadius: 12 * scale,
-                offset: Offset(0, 4 * scale),
+                ],
               ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: Colors.white, size: iconSize),
-              SizedBox(width: 4 * scale),
-              Text(
-                label,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
+            ),
+
+            const SizedBox(width: Space.xs),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: c.inkFaint,
+              size: 20,
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// Paints a dashed circle outline.
-class _DashedCirclePainter extends CustomPainter {
-  _DashedCirclePainter({
-    required this.color,
-    required this.strokeWidth,
-    required this.dashLength,
-    required this.gapLength,
-  });
+// ── Probe overlay dialog ────────────────────────────────────────────────────
 
-  final Color color;
-  final double strokeWidth;
-  final double dashLength;
-  final double gapLength;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
-
-    final radius = size.width / 2;
-    final center = Offset(size.width / 2, size.height / 2);
-    final circumference = 2 * math.pi * radius;
-    final dashCount = (circumference / (dashLength + gapLength)).floor();
-    final dashAngle = dashLength / radius;
-    final gapAngle = (2 * math.pi - dashCount * dashAngle) / dashCount;
-
-    for (var i = 0; i < dashCount; i++) {
-      final startAngle = i * (dashAngle + gapAngle);
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        dashAngle,
-        false,
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedCirclePainter oldDelegate) =>
-      color != oldDelegate.color || strokeWidth != oldDelegate.strokeWidth;
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// Feature Cards Row
-// ═══════════════════════════════════════════════════════════════════════
-
-/// Three small square-ish feature cards displayed in a row: High Quality,
-/// Fast Process, All Formats.
-class _FeatureCardsRow extends StatelessWidget {
-  const _FeatureCardsRow();
+class _ProbeOverlayDialog extends StatelessWidget {
+  const _ProbeOverlayDialog();
 
   @override
   Widget build(BuildContext context) {
-    final features = [
-      _FeatureData(
-        icon: Icons.equalizer_rounded,
-        title: 'HIGH\nQUALITY',
-        color: AppColors.primary,
-      ),
-      _FeatureData(
-        icon: Icons.bolt_rounded,
-        title: 'FAST\nPROCESS',
-        color: AppColors.warning,
-      ),
-      _FeatureData(
-        icon: Icons.description_rounded,
-        title: 'ALL\nFORMATS',
-        color: AppColors.success,
-      ),
-    ];
-
-    return Row(
-      children: features.asMap().entries.map((entry) {
-        final index = entry.key;
-        final feature = entry.value;
-        final isLast = index == features.length - 1;
-
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(right: isLast ? 0 : 10),
-            child: _SmallFeatureCard(feature: feature)
-                .animate()
-                .fadeIn(
-                  delay: Duration(milliseconds: 100 * index),
-                  duration: const Duration(milliseconds: 400),
-                )
-                .slideY(
-                  begin: 0.3,
-                  end: 0,
-                  delay: Duration(milliseconds: 100 * index),
-                  duration: const Duration(milliseconds: 400),
-                ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
-
-/// Data holder for a small feature card.
-class _FeatureData {
-  _FeatureData({required this.icon, required this.title, required this.color});
-
-  final IconData icon;
-  final String title;
-  final Color color;
-}
-
-/// Compact feature card with an icon on top and a two-line label below.
-class _SmallFeatureCard extends StatelessWidget {
-  const _SmallFeatureCard({required this.feature});
-
-  final _FeatureData feature;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(AppConstants.cardRadius),
-        border: Border.all(
-          color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+    final c = context.peel;
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: Space.xxl,
+          vertical: Space.xl,
         ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: feature.color.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: BorderRadius.circular(Radii.card),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: c.peel, strokeWidth: 3),
+            const SizedBox(height: Space.md),
+            Text(
+              'Reading video…',
+              style: context.text.bodyMedium?.copyWith(color: c.inkMuted),
             ),
-            child: Icon(feature.icon, color: feature.color, size: 20),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            feature.title,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              height: 1.3,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -94,7 +94,7 @@ abstract final class AppConstants {
   static const String databaseName = 'audiopeel.db';
 
   /// Current database version for migrations.
-  static const int databaseVersion = 1;
+  static const int databaseVersion = 2;
 
   // ─── Preferences Keys ──────────────────────────────────────────────
 

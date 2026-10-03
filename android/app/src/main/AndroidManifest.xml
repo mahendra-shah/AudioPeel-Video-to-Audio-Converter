@@ -1,12 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <application
-        android:label="AudioPeel: Video to Mp3"
+        android:label="AudioPeel"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:requestLegacyExternalStorage="true">
-        
+        android:roundIcon="@mipmap/ic_launcher_round">
+
         <!-- AdMob App ID: reads from res/values/strings.xml. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
@@ -29,6 +28,23 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- "Share → AudioPeel" from Gallery, Photos, WhatsApp, Files… -->
+            <intent-filter android:label="Extract audio">
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="video/*"/>
+            </intent-filter>
+            <intent-filter android:label="Extract audio">
+                <action android:name="android.intent.action.SEND_MULTIPLE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="video/*"/>
+            </intent-filter>
+            <!-- "Open with → AudioPeel" -->
+            <intent-filter android:label="Extract audio">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="content" android:mimeType="video/*"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
@@ -38,20 +54,16 @@
     </application>
 
     <!-- Permissions -->
-    <!-- For Android 8-12 (API 26-32): Legacy storage permission -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+                     android:maxSdkVersion="28"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
                      android:maxSdkVersion="32"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-                     android:maxSdkVersion="29"/>
-    <!-- For Android 13+ (API 33+): Granular media permissions -->
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
-    <!-- Explicitly remove READ_MEDIA_IMAGES (not needed for video-to-audio conversion) -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
     <!-- For ads -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <!-- For setting ringtone -->
+    <!-- For setting ringtone / notification / alarm sound -->
     <uses-permission android:name="android.permission.WRITE_SETTINGS"
                      tools:ignore="ProtectedPermissions"/>
     <!-- For conversion progress notifications (Android 13+) -->
@@ -61,6 +73,14 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="mailto"/>
         </intent>
     </queries>
 </manifest>

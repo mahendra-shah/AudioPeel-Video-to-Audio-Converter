@@ -52,7 +52,9 @@ class DatabaseService {
         duration INTEGER NOT NULL,
         status TEXT NOT NULL,
         created_at INTEGER NOT NULL,
-        error_message TEXT
+        error_message TEXT,
+        format TEXT NOT NULL DEFAULT 'mp3',
+        display_path TEXT
       )
     ''');
 
@@ -70,7 +72,12 @@ class DatabaseService {
       'Upgrading database from v$oldVersion to v$newVersion',
       'DatabaseService',
     );
-    // Future migrations go here.
+    if (oldVersion < 2) {
+      await db.execute(
+        "ALTER TABLE conversions ADD COLUMN format TEXT NOT NULL DEFAULT 'mp3'",
+      );
+      await db.execute('ALTER TABLE conversions ADD COLUMN display_path TEXT');
+    }
   }
 
   // ─── Insert ─────────────────────────────────────────────────────────
@@ -107,6 +114,19 @@ class DatabaseService {
   Future<List<AudioFile>> last7DaysConversions() async {
     final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
     return _completedSince(sevenDaysAgo);
+  }
+
+  /// Returns completed conversions in any of the given [formats].
+  Future<List<AudioFile>> conversionsByFormats(List<String> formats) async {
+    final db = await database;
+    final placeholders = List.filled(formats.length, '?').join(',');
+    final rows = await db.query(
+      'conversions',
+      where: "status = 'completed' AND format IN ($placeholders)",
+      whereArgs: formats,
+      orderBy: 'created_at DESC',
+    );
+    return rows.map(AudioFile.fromMap).toList();
   }
 
   /// Returns only high-quality (320 kbps) completed conversions.

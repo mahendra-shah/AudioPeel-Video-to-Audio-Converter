@@ -1,19 +1,26 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../constants/app_colors.dart';
-import '../widgets/common/audio_icon.dart';
-import '../constants/app_constants.dart';
 import '../constants/app_strings.dart';
+import '../design/motion.dart';
+import '../design/tokens.dart';
 import '../models/audio_quality.dart';
-import '../providers/ad_provider.dart';
+import '../models/output_format.dart';
 import '../providers/settings_provider.dart';
+import '../services/consent_service.dart';
+import '../services/media_bridge.dart';
+import '../services/review_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/pill_selector.dart';
+import '../widgets/section_card.dart';
 
-/// Settings screen with grouped sections matching the design:
-/// Remove Ads CTA, Audio Settings, Appearance & Behavior, Storage, About.
+// ---------------------------------------------------------------------------
+// Settings Screen
+// ---------------------------------------------------------------------------
+
+/// User-facing settings: conversion defaults, appearance, storage and about.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -22,544 +29,454 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _storageService = StorageService();
-  String _outputPath = '';
+  String _version = '';
 
   @override
   void initState() {
     super.initState();
-    _loadStorageInfo();
+    _loadVersion();
   }
 
-  Future<void> _loadStorageInfo() async {
-    final path = await _storageService.outputDirectory();
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
     if (mounted) {
-      setState(() {
-        _outputPath = path;
-      });
+      setState(() => _version = '${info.version} (${info.buildNumber})');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
+    final p = context.peel;
 
     return Scaffold(
+      backgroundColor: p.canvas,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
+        backgroundColor: p.canvas,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Text(
+          AppStrings.settingsTitle,
+          style: TextStyle(
+            fontFamily: 'Jakarta',
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: p.ink,
+          ),
         ),
-        title: const Text(AppStrings.settings),
+        iconTheme: IconThemeData(color: p.inkMuted),
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppConstants.paddingScreen,
-          vertical: AppConstants.spacingSmall,
+          horizontal: Space.gutter,
+          vertical: Space.md,
         ),
         children: [
-          // ── Appearance & Behavior ─────────────────────────────────
-          const _SectionHeader(title: AppStrings.appearanceAndBehavior),
-          const SizedBox(height: AppConstants.spacingSmall),
-          _ThemeModeTile(
-            currentMode: settings.themeMode,
-            onChanged: settings.setThemeMode,
-          ),
+          _DefaultsSection(),
+          const SizedBox(height: Space.xl),
+          _AppearanceSection(),
+          const SizedBox(height: Space.xl),
+          _StorageSection(),
+          const SizedBox(height: Space.xl),
+          _AboutSection(version: _version),
+          const SizedBox(height: Space.xxl),
+        ],
+      ),
+    );
+  }
+}
 
-          const SizedBox(height: AppConstants.spacingSection),
+// ---------------------------------------------------------------------------
+// Defaults Section
+// ---------------------------------------------------------------------------
 
-          // ── Audio Settings ────────────────────────────────────────
-          const _SectionHeader(title: AppStrings.audioSettings),
-          const SizedBox(height: AppConstants.spacingSmall),
-          _NavigationTile(
-            iconWidget: const AudioIcon(size: 20, color: AppColors.primary),
-            iconColor: AppColors.primary,
-            title: AppStrings.audioQualityLabel,
-            subtitle: AudioQuality.fromKbps(settings.defaultQualityKbps).label,
-            subtitleExtra: '(${settings.defaultQualityKbps}kbps)',
-            onTap: () => _showQualityPicker(settings),
-          ),
-          const SizedBox(height: AppConstants.spacingSmall),
-          _ToggleTile(
-            icon: Icons.equalizer_rounded,
-            iconColor: AppColors.primary,
-            title: AppStrings.normalizeVolume,
-            value: settings.normalizeVolume,
-            onChanged: (_) => settings.toggleNormalizeVolume(),
-          ),
+class _DefaultsSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
+    final p = context.peel;
 
-          const SizedBox(height: AppConstants.spacingSection),
-
-          // ── Storage & Files ───────────────────────────────────────
-          const _SectionHeader(title: AppStrings.storage),
-          const SizedBox(height: AppConstants.spacingSmall),
-          _NavigationTile(
-            icon: Icons.folder_rounded,
-            iconColor: AppColors.success,
-            title: AppStrings.outputPath,
-            subtitle: _outputPath,
-            onTap: _onChangeOutputPath,
-          ),
-          const SizedBox(height: AppConstants.spacingSmall),
-          _ToggleTile(
-            icon: Icons.auto_delete_rounded,
-            iconColor: AppColors.error,
-            title: AppStrings.autoDeleteOriginal,
-            subtitle: AppStrings.autoDeleteDescription,
-            value: settings.autoDeleteOriginal,
-            onChanged: (_) => settings.toggleAutoDeleteOriginal(),
-          ),
-
-          const SizedBox(height: AppConstants.spacingSection),
-
-          // ── About ─────────────────────────────────────────────────
-          const _SectionHeader(title: AppStrings.about),
-          const SizedBox(height: AppConstants.spacingSmall),
-          _NavigationTile(
-            icon: Icons.radio_rounded,
-            iconColor: AppColors.textSecondaryDark,
-            title: AppStrings.appNameAbout,
-            onTap: () {
-              showAboutDialog(
-                context: context,
-                applicationName: AppStrings.appNameAbout,
-                applicationVersion: AppStrings.versionValue,
-                applicationIcon: ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: Image.asset(
-                    'assets/icon/app_icon.png',
-                    width: 56,
-                    height: 56,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                applicationLegalese: AppStrings.copyright,
-                children: [
-                  const SizedBox(height: 16),
-                  const Text(
-                    'A fast, offline video-to-audio converter. '
-                    'Extract audio from any video format with ease.',
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: AppConstants.spacingSmall),
-          const _InfoTile(
-            icon: Icons.info_outline_rounded,
-            iconColor: AppColors.primary,
-            title: AppStrings.version,
-            trailing: AppStrings.versionValue,
-          ),
-          const SizedBox(height: AppConstants.spacingSmall),
-          _NavigationTile(
-            icon: Icons.policy_rounded,
-            iconColor: AppColors.primary,
-            title: AppStrings.privacyPolicy,
-            subtitle: 'Learn how we protect your data',
-            onTap: () async {
-              final uri = Uri.parse('https://mahendra-shah.github.io/AudioPeel-Video-to-Audio-Converter/PRIVACY_POLICY');
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              } else {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Could not open privacy policy'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                }
-              }
-            },
-          ),
-
-          // ── Footer ────────────────────────────────────────────────
-          const SizedBox(height: AppConstants.spacingSection + 8),
-          Center(
-            child: Text(
-              AppStrings.copyright,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondaryDark,
-              ),
+    return SectionCard(
+      title: AppStrings.settingsSectionDefaults,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Format
+          _SettingsLabel(label: AppStrings.settingsFormat),
+          const SizedBox(height: Space.xs),
+          SizedBox(
+            width: double.infinity,
+            child: PillSelector<OutputFormat>(
+              items: OutputFormat.values,
+              selected: settings.defaultFormat,
+              label: (f) => f.label,
+              onChanged: (f) => settings.setDefaultFormat(f),
             ),
           ),
-          const SizedBox(height: AppConstants.spacingSection),
+          const SizedBox(height: Space.md),
+
+          // Quality (only relevant for lossy formats)
+          AnimatedSize(
+            duration: Motion.short,
+            curve: Motion.standard,
+            child: settings.defaultFormat.lossless
+                ? const SizedBox.shrink()
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SettingsLabel(label: AppStrings.settingsQuality),
+                      const SizedBox(height: Space.xs),
+                      SizedBox(
+                        width: double.infinity,
+                        child: PillSelector<AudioQuality>(
+                          items: AudioQuality.values,
+                          selected: AudioQuality.fromKbps(
+                            settings.defaultQualityKbps,
+                          ),
+                          label: (q) => '${q.kbps}k',
+                          onChanged: (q) => settings.setDefaultQuality(q.kbps),
+                        ),
+                      ),
+                      const SizedBox(height: Space.md),
+                    ],
+                  ),
+          ),
+
+          // Normalize volume
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              AppStrings.settingsNormalizeVolume,
+              style: _rowTitleStyle(context),
+            ),
+            subtitle: Text(
+              AppStrings.settingsNormalizeVolumeSubtitle,
+              style: _rowSubtitleStyle(context),
+            ),
+            value: settings.normalizeVolume,
+            activeColor: p.peel,
+            onChanged: (_) {
+              Haptics.select();
+              settings.toggleNormalizeVolume();
+            },
+          ),
+
+          // Album art
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              AppStrings.settingsAlbumArt,
+              style: _rowTitleStyle(context),
+            ),
+            subtitle: Text(
+              AppStrings.settingsAlbumArtSubtitle,
+              style: _rowSubtitleStyle(context),
+            ),
+            value: settings.albumArt,
+            activeColor: p.peel,
+            onChanged: (_) {
+              Haptics.select();
+              settings.toggleAlbumArt();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Appearance Section
+// ---------------------------------------------------------------------------
+
+class _AppearanceSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
+
+    return SectionCard(
+      title: AppStrings.settingsSectionAppearance,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SettingsLabel(label: AppStrings.settingsTheme),
+          const SizedBox(height: Space.xs),
+          SizedBox(
+            width: double.infinity,
+            child: PillSelector<ThemeMode>(
+              items: ThemeMode.values,
+              selected: settings.themeMode,
+              label: (m) {
+                switch (m) {
+                  case ThemeMode.system:
+                    return AppStrings.settingsThemeSystem;
+                  case ThemeMode.light:
+                    return AppStrings.settingsThemeLight;
+                  case ThemeMode.dark:
+                    return AppStrings.settingsThemeDark;
+                }
+              },
+              onChanged: (m) {
+                Haptics.select();
+                settings.setThemeMode(m);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Storage Section
+// ---------------------------------------------------------------------------
+
+class _StorageSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final p = context.peel;
+    final storage = const StorageService();
+
+    return SectionCard(
+      title: AppStrings.settingsSectionStorage,
+      child: Column(
+        children: [
+          // Saved to
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: Space.sm),
+            child: Row(
+              children: [
+                Icon(Icons.folder_outlined, color: p.inkMuted, size: 22),
+                const SizedBox(width: Space.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        AppStrings.settingsSavedTo,
+                        style: _rowTitleStyle(context),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        storage.getOutputDirectoryDisplay(),
+                        style: TextStyle(
+                          fontFamily: 'JetBrainsMono',
+                          fontSize: 12,
+                          color: p.inkMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Open folder
+          _TapRow(
+            icon: Icons.open_in_new_outlined,
+            label: AppStrings.settingsOpenFolder,
+            onTap: () => MediaBridge.openFolder(),
+          ),
+
+          // Clear cache
+          _TapRow(
+            icon: Icons.cleaning_services_outlined,
+            label: AppStrings.settingsClearCache,
+            onTap: () => _confirmClearCache(context),
+          ),
         ],
       ),
     );
   }
 
-  // ─── Quality Picker ─────────────────────────────────────────────────
-
-  void _showQualityPicker(SettingsProvider settings) {
-    showModalBottomSheet<AudioQuality>(
+  Future<void> _confirmClearCache(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(AppConstants.paddingScreen),
-                child: Text(
-                  AppStrings.selectQuality,
-                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              ...AudioQuality.values.map((q) {
-                final isSelected = q.kbps == settings.defaultQualityKbps;
-                return ListTile(
-                  leading: Icon(
-                    isSelected
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_off,
-                    color: isSelected ? AppColors.primary : null,
-                  ),
-                  title: Text('${q.label} (${q.displayName})'),
-                  onTap: () => Navigator.of(ctx).pop(q),
-                );
-              }),
-              const SizedBox(height: AppConstants.spacingSmall),
-            ],
+      builder: (ctx) => AlertDialog(
+        title: const Text(AppStrings.settingsClearCacheConfirmTitle),
+        content: const Text(AppStrings.settingsClearCacheConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(AppStrings.cancel),
           ),
-        );
-      },
-    ).then((quality) {
-      if (quality != null) {
-        settings.setDefaultQuality(quality.kbps);
-      }
-    });
-  }
-
-  // ─── Change Output Path ─────────────────────────────────────────────
-
-  Future<void> _onChangeOutputPath() async {
-    final selectedDir = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: 'Select Output Folder',
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              AppStrings.confirm,
+              style: TextStyle(color: context.peel.danger),
+            ),
+          ),
+        ],
+      ),
     );
-
-    if (selectedDir == null || !mounted) return;
-
-    _storageService.setOutputDirectory(selectedDir);
-    setState(() => _outputPath = selectedDir);
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Output path set to: $selectedDir')));
+    if (confirmed == true) {
+      await const StorageService().clearCache();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(AppStrings.settingsClearCacheSuccess)),
+        );
+      }
+    }
   }
 }
 
-// ─── Section Header ───────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
+// About Section
+// ---------------------------------------------------------------------------
 
-/// Uppercase section heading (e.g. "AUDIO SETTINGS").
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
+class _AboutSection extends StatelessWidget {
+  const _AboutSection({required this.version});
+  final String version;
 
-  final String title;
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      title: AppStrings.settingsSectionAbout,
+      child: Column(
+        children: [
+          _TapRow(
+            icon: Icons.star_outline,
+            label: AppStrings.settingsRate,
+            onTap: () => ReviewService.openStore(),
+          ),
+          _TapRow(
+            icon: Icons.share_outlined,
+            label: AppStrings.settingsShareApp,
+            onTap: () => _launchUrl(AppStrings.playStoreUrl),
+          ),
+          _TapRow(
+            icon: Icons.privacy_tip_outlined,
+            label: AppStrings.settingsPrivacyPolicy,
+            onTap: () => _launchUrl(AppStrings.privacyPolicyUrl),
+          ),
+          if (ConsentService.privacyOptionsRequired)
+            _TapRow(
+              icon: Icons.tune_outlined,
+              label: AppStrings.settingsPrivacyOptions,
+              onTap: () => ConsentService.showPrivacyOptions(),
+            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: Space.sm),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: context.peel.inkMuted,
+                  size: 22,
+                ),
+                const SizedBox(width: Space.sm),
+                Expanded(
+                  child: Text(
+                    AppStrings.settingsVersion,
+                    style: _rowTitleStyle(context),
+                  ),
+                ),
+                Text(
+                  version,
+                  style: TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontSize: 12,
+                    color: context.peel.inkMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared row helpers
+// ---------------------------------------------------------------------------
+
+class _TapRow extends StatelessWidget {
+  const _TapRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.peel;
+    final effectiveColor = color ?? p.ink;
+
+    return InkWell(
+      onTap: () {
+        Haptics.tap();
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(Radii.chip),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: Space.sm),
+        child: Row(
+          children: [
+            Icon(icon, color: effectiveColor, size: 22),
+            const SizedBox(width: Space.sm),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontFamily: 'Jakarta',
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: effectiveColor,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right, color: p.inkFaint, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsLabel extends StatelessWidget {
+  const _SettingsLabel({required this.label});
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     return Text(
-      title,
-      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-        fontWeight: FontWeight.w700,
-        letterSpacing: 1.4,
+      label,
+      style: TextStyle(
+        fontFamily: 'Jakarta',
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: context.peel.inkMuted,
       ),
     );
   }
 }
 
-// ─── Toggle Tile ──────────────────────────────────────────────────────
-
-/// Card-shaped row with an icon, title, optional subtitle, and a switch.
-class _ToggleTile extends StatelessWidget {
-  const _ToggleTile({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    this.subtitle,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String? subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return _TileCard(
-      child: Row(
-        children: [
-          _CircleIcon(icon: icon, color: iconColor),
-          const SizedBox(width: AppConstants.spacingSmall + 4),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
-                ],
-              ],
-            ),
-          ),
-          Switch.adaptive(
-            value: value,
-            onChanged: onChanged,
-            activeTrackColor: AppColors.primary,
-          ),
-        ],
-      ),
+TextStyle _rowTitleStyle(BuildContext context) => TextStyle(
+      fontFamily: 'Jakarta',
+      fontSize: 15,
+      fontWeight: FontWeight.w500,
+      color: context.peel.ink,
     );
-  }
-}
 
-// ─── Navigation Tile ──────────────────────────────────────────────────
-
-/// Card-shaped row with an icon, title, optional subtitle, and a chevron.
-class _NavigationTile extends StatelessWidget {
-  const _NavigationTile({
-    this.icon,
-    this.iconWidget,
-    required this.iconColor,
-    required this.title,
-    this.subtitle,
-    this.subtitleExtra,
-    required this.onTap,
-  }) : assert(icon != null || iconWidget != null,
-            'Either icon or iconWidget must be provided');
-
-  final IconData? icon;
-  final Widget? iconWidget;
-  final Color iconColor;
-  final String title;
-  final String? subtitle;
-  final String? subtitleExtra;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return _TileCard(
-      onTap: onTap,
-      child: Row(
-        children: [
-          _CircleIcon(icon: icon, iconWidget: iconWidget, color: iconColor),
-          const SizedBox(width: AppConstants.spacingSmall + 4),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitleExtra != null
-                        ? '$subtitle $subtitleExtra'
-                        : subtitle!,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            ),
-          ),
-          Icon(
-            Icons.chevron_right_rounded,
-            color: theme.textTheme.bodySmall?.color,
-          ),
-        ],
-      ),
+TextStyle _rowSubtitleStyle(BuildContext context) => TextStyle(
+      fontFamily: 'Jakarta',
+      fontSize: 12,
+      color: context.peel.inkMuted,
     );
-  }
-}
-
-// ─── Theme Mode Tile ──────────────────────────────────────────────────
-
-/// A card tile letting the user choose between System, Light, and Dark
-/// theme modes via a segmented control.
-class _ThemeModeTile extends StatelessWidget {
-  const _ThemeModeTile({required this.currentMode, required this.onChanged});
-
-  final ThemeMode currentMode;
-  final ValueChanged<ThemeMode> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return _TileCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const _CircleIcon(
-                icon: Icons.palette_rounded,
-                color: Color(0xFF6366F1),
-              ),
-              const SizedBox(width: AppConstants.spacingSmall + 4),
-              Text(
-                'Theme',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: SegmentedButton<ThemeMode>(
-              segments: const [
-                ButtonSegment(
-                  value: ThemeMode.system,
-                  label: Text('System'),
-                  icon: Icon(Icons.settings_brightness_rounded, size: 18),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.light,
-                  label: Text('Light'),
-                  icon: Icon(Icons.light_mode_rounded, size: 18),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.dark,
-                  label: Text('Dark'),
-                  icon: Icon(Icons.dark_mode_rounded, size: 18),
-                ),
-              ],
-              selected: {currentMode},
-              onSelectionChanged: (selected) => onChanged(selected.first),
-              showSelectedIcon: false,
-              style: ButtonStyle(
-                visualDensity: VisualDensity.compact,
-                textStyle: WidgetStatePropertyAll(
-                  theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Info Tile ────────────────────────────────────────────────────────
-
-/// Card-shaped row with an icon, title, and a trailing text value.
-class _InfoTile extends StatelessWidget {
-  const _InfoTile({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.trailing,
-  });
-
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return _TileCard(
-      child: Row(
-        children: [
-          _CircleIcon(icon: icon, color: iconColor),
-          const SizedBox(width: AppConstants.spacingSmall + 4),
-          Expanded(
-            child: Text(
-              title,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Text(trailing, style: theme.textTheme.bodySmall),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Shared helpers ───────────────────────────────────────────────────
-
-/// Card background shared by all setting tiles.
-class _TileCard extends StatelessWidget {
-  const _TileCard({required this.child, this.onTap});
-
-  final Widget child;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? AppColors.cardDark : AppColors.cardLight;
-
-    return Material(
-      color: bg,
-      borderRadius: BorderRadius.circular(AppConstants.cardRadius),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppConstants.cardRadius),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppConstants.paddingScreen,
-            vertical: 14,
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-}
-
-/// Small coloured circle containing an icon, used as the leading
-/// element in every settings tile.
-class _CircleIcon extends StatelessWidget {
-  const _CircleIcon({this.icon, this.iconWidget, required this.color})
-      : assert(icon != null || iconWidget != null,
-            'Either icon or iconWidget must be provided');
-
-  final IconData? icon;
-  final Widget? iconWidget;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        shape: BoxShape.circle,
-      ),
-      child: iconWidget ?? Icon(icon, color: color, size: 20),
-    );
-  }
-}

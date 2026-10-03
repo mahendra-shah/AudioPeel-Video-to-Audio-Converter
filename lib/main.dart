@@ -14,6 +14,9 @@ import 'services/notification_service.dart';
 import 'services/storage_service.dart';
 import 'utils/logger.dart';
 
+import 'providers/player_provider.dart';
+import 'providers/queue_provider.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -28,7 +31,6 @@ Future<void> main() async {
       'Submitting to Play Store with test ad IDs will result in REJECTION or account SUSPENSION!',
       tag: 'Main',
     );
-    // In a real production scenario, you might want to show an in-app banner or prevent app launch
   }
 
   // Initialise the Mobile Ads SDK — non-fatal if it fails.
@@ -62,12 +64,18 @@ Future<void> main() async {
     );
   }
 
+  final historyProvider = HistoryProvider();
+  final queueProvider = QueueProvider(history: historyProvider);
+  final playerProvider = PlayerProvider();
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: settingsProvider),
+        ChangeNotifierProvider.value(value: historyProvider),
+        ChangeNotifierProvider.value(value: queueProvider),
+        ChangeNotifierProvider.value(value: playerProvider),
         ChangeNotifierProvider(create: (_) => ConversionProvider()),
-        ChangeNotifierProvider(create: (_) => HistoryProvider()),
         ChangeNotifierProvider(
           create: (_) {
             final adProvider = AdProvider();

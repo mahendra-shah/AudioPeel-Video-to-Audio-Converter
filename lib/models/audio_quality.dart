@@ -1,10 +1,13 @@
-/// Supported audio bitrates for MP3 conversion.
+/// Supported bitrates for lossy (MP3 / M4A) exports.
 enum AudioQuality {
   /// 128 kbps — Standard quality, smallest file size.
   low128(128, 'Standard', '128 kbps'),
 
   /// 192 kbps — Recommended balance of size and quality.
   medium192(192, 'High Quality', '192 kbps'),
+
+  /// 256 kbps — Near-transparent for most listeners.
+  high256(256, 'Very High', '256 kbps'),
 
   /// 320 kbps — Maximum quality, largest file size.
   high320(320, 'Maximum', '320 kbps');

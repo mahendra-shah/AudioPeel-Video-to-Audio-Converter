@@ -1,4 +1,5 @@
 import 'audio_quality.dart';
+import 'output_format.dart';
 
 /// A completed conversion record stored in the database.
 ///
@@ -16,6 +17,8 @@ class AudioFile {
     required this.status,
     required this.createdAt,
     this.errorMessage,
+    this.format = OutputFormat.mp3,
+    this.displayPath,
   });
 
   /// Auto-incremented database primary key. `null` before insertion.
@@ -24,13 +27,14 @@ class AudioFile {
   /// Original video file name (e.g. "vacation.mp4").
   final String inputVideoName;
 
-  /// Full path to the original video.
+  /// Source video URI (`content://`) or legacy file path.
   final String inputVideoPath;
 
   /// Generated MP3 file name (e.g. "vacation_audio.mp3").
   final String outputAudioName;
 
-  /// Full path to the output MP3 file.
+  /// Output location: a MediaStore `content://` URI (v2) or a legacy file
+  /// path (v1, app-private storage).
   final String outputAudioPath;
 
   /// The bitrate used for this conversion.
@@ -51,8 +55,21 @@ class AudioFile {
   /// Error text if [status] is `"failed"`, otherwise `null`.
   final String? errorMessage;
 
+  /// Container of the output audio.
+  final OutputFormat format;
+
+  /// Human-readable location, e.g. "Music/AudioPeel/song.mp3".
+  final String? displayPath;
+
   /// Whether this conversion was successful.
   bool get isCompleted => status == 'completed';
+
+  /// Whether the output lives in MediaStore (shareable without a path).
+  bool get isContentUri => outputAudioPath.startsWith('content://');
+
+  /// Short quality badge, e.g. "320k" or "FLAC".
+  String get qualityBadge =>
+      format.lossless ? format.label : '${format.label} · ${quality.kbps}k';
 
   // ─── SQLite Serialisation ───────────────────────────────────────────
 
@@ -70,6 +87,8 @@ class AudioFile {
       'status': status,
       'created_at': createdAt.millisecondsSinceEpoch,
       'error_message': errorMessage,
+      'format': format.name,
+      'display_path': displayPath,
     };
   }
 
@@ -87,6 +106,10 @@ class AudioFile {
       status: map['status'] as String,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
       errorMessage: map['error_message'] as String?,
+      format: map['format'] != null
+          ? OutputFormat.fromName(map['format'] as String?)
+          : OutputFormat.fromFileName(map['output_audio_name'] as String),
+      displayPath: map['display_path'] as String?,
     );
   }
 
@@ -103,6 +126,8 @@ class AudioFile {
     String? status,
     DateTime? createdAt,
     String? errorMessage,
+    OutputFormat? format,
+    String? displayPath,
   }) {
     return AudioFile(
       id: id ?? this.id,
@@ -116,6 +141,8 @@ class AudioFile {
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       errorMessage: errorMessage ?? this.errorMessage,
+      format: format ?? this.format,
+      displayPath: displayPath ?? this.displayPath,
     );
   }
 
